@@ -1,0 +1,64 @@
+var println -> corn.println
+var print -> corn.print
+
+var paths -> {
+    path1: {
+        say: @() {
+            println("Welcome to the main adventure!")
+        }
+        options: [ 
+            { 
+                name: "Go to store"
+                link: "path2"
+            } 
+        ]
+        response: @() {
+            print("Response: ")
+            ret corn.input()
+        }
+    }
+    path2: {
+        say: @() {
+            println("The store looks pretty nice.")
+        }
+        options: [ 
+            { 
+                name: "Go back home"
+                link: "path1"
+            } 
+        ]
+        response: @() {
+            print("Response: ")
+            ret corn.input()
+        }
+    }
+}
+
+fun main() {
+    var current -> paths.path1
+
+    while current != nil {
+        current.say()
+
+        var i -> 1
+        current.options.forEach(@(option) {
+            println("Option " + i + ": " + option.name)
+            i -> i + 1
+        })
+
+        var res -> current.response()
+        
+        if (res == "exit") {
+            abort
+        }
+        
+        var index -> corn.int(res) - 1
+
+        if (index >= 0 && index < current.options.len) {
+            var link -> current.options.at(index).link
+            current -> paths.get(link)
+        }
+    }
+}
+
+main()
