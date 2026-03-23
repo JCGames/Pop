@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <AssemblyName>Pop.ConsoleApp</AssemblyName>
+        <RootNamespace>$(AssemblyName)</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Language\Language.csproj" />
+      <ProjectReference Include="..\Runtime\Runtime.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="Scripts\*.pop" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+</Project>

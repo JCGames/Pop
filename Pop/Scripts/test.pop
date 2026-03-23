@@ -1,0 +1,1 @@
+corn.print(corn.read("../../../Scripts/test.pop"))
