@@ -286,6 +286,22 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_EvaluatesStringContainsMember()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var text -> "hello"
+            corn.println(text.contains("ell"))
+            corn.println(text.contains('z'))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\nfalse\r\n", writer.ToString());
+    }
+
+    [TestMethod]
     public void ExecuteText_EvaluatesStringAtMember()
     {
         var writer = new StringWriter();

@@ -171,6 +171,14 @@ internal sealed class StringAddCallable(string text) : IRuntimeCallable
     }
 }
 
+internal sealed class StringContainsCallable(string text) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        return text.Contains(RuntimeValueFormatter.Format(arguments[0]), StringComparison.Ordinal);
+    }
+}
+
 internal sealed class StringInsertCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)

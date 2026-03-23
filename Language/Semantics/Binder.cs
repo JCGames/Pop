@@ -369,6 +369,7 @@ internal sealed class Binder
                 "len" => TypeSymbol.Int,
                 "at" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.Char),
                 "add" => new FunctionTypeSymbol([TypeSymbol.Any], TypeSymbol.String),
+                "contains" => new FunctionTypeSymbol([TypeSymbol.Any], TypeSymbol.Bool),
                 "insert" => new FunctionTypeSymbol([TypeSymbol.Int, TypeSymbol.Any], TypeSymbol.String),
                 "replace" => new FunctionTypeSymbol([TypeSymbol.Int, TypeSymbol.Any], TypeSymbol.String),
                 "remove" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.String),

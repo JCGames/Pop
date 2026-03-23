@@ -236,6 +236,7 @@ corn.println([1, 2, 3].len)
 | `text.len` | Number of characters | `int` |
 | `text.at(index)` | Character at `index`, or `null` if out of range | `char` or `null` |
 | `text.add(item)` | Returns a new string with the formatted item appended | `string` |
+| `text.contains(item)` | Returns whether the string contains the formatted item | `bool` |
 | `text.insert(index, item)` | Returns a new string with the formatted item inserted at `index`; out-of-range clamps to the start or end | `string` |
 | `text.replace(index, item)` | Returns a new string with the character at `index` replaced by the formatted item; out-of-range returns the original string | `string` |
 | `text.remove(index)` | Returns a new string with the character at `index` removed; out-of-range returns the original string | `string` |
@@ -246,6 +247,7 @@ Example:
 ```text
 var text -> "hello"
 corn.println(text.at(1))
+corn.println(text.contains("ell"))
 text.forEach(@(character) {
     corn.println(character)
 })

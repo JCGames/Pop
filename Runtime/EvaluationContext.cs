@@ -343,6 +343,7 @@ internal sealed class EvaluationContext
                 "len" => (long)text.Length,
                 "at" => new StringAtCallable(text),
                 "add" => new StringAddCallable(text),
+                "contains" => new StringContainsCallable(text),
                 "insert" => new StringInsertCallable(text),
                 "replace" => new StringReplaceCallable(text),
                 "remove" => new StringRemoveCallable(text),
