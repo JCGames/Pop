@@ -40,3 +40,21 @@ public fun min(arr) {
 
     ret max
 }
+
+public fun clamp01(number) {
+    var type -> corn.type(number)
+    if (type != "int" && type != "double") {
+        corn.println("[clamp01] function only takes a number.")
+        ret
+    }
+
+    if (number < 0) {
+        number -> 0
+    }
+
+    if (number > 1) {
+        number -> 1
+    }
+
+    ret number
+}
