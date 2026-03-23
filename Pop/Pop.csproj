@@ -13,6 +13,9 @@
 
     <ItemGroup>
       <Content Include="Scripts\*.pop" CopyToOutputDirectory="PreserveNewest" />
+      <Content Update="test.pop">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

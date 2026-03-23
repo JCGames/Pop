@@ -1,0 +1,42 @@
+﻿var Integer -> 0
+var Double -> 0.0
+
+public var IntMin -> Integer.min
+public var IntMax -> Integer.max
+
+public var DoubleMin -> Double.min
+public var DoubleMax -> Double.max
+
+public fun max(arr) {
+    if (corn.type(arr) != "array") {
+        corn.println("[max] function only takes arrays.")
+        ret -1
+    }
+
+    var min -> IntMin
+
+    arr.forEach(@(number) {
+        if min < number {
+            min -> number
+        }
+    })
+
+    ret min
+}
+
+public fun min(arr) {
+    if (corn.type(arr) != "array") {
+        corn.println("[min] function only takes arrays.")
+        ret -1
+    }
+
+    var max -> IntMax
+
+    arr.forEach(@(number) {
+        if max > number {
+            max -> number
+        }
+    })
+
+    ret max
+}
