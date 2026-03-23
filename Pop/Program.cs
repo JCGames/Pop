@@ -17,7 +17,7 @@ if (model.Diagnostics.Count > 0)
     return;
 }
 
-var runtime = new ScriptRuntime(Console.Out);
+var runtime = new ScriptRuntime(Console.Out, Console.In);
 var result = runtime.Execute(model);
 
 if (!result.Succeeded && result.Diagnostics.Count > 0)
@@ -30,8 +30,22 @@ if (!result.Succeeded && result.Diagnostics.Count > 0)
 
 static string ReadInput()
 {
-    Console.Write("input> ");
-    return Console.ReadLine() ?? string.Empty;
+    Console.WriteLine("Enter script lines. Type ':run' on its own line to execute.");
+
+    var lines = new List<string>();
+    while (true)
+    {
+        Console.Write(lines.Count == 0 ? "input> " : ".....> ");
+        var line = Console.ReadLine();
+        if (line is null || line == ":run")
+        {
+            break;
+        }
+
+        lines.Add(line);
+    }
+
+    return string.Join(Environment.NewLine, lines);
 }
 
 static SourceFile LoadSourceFile(string[] args)

@@ -67,6 +67,31 @@ internal sealed class ArrayAtCallable(List<object?> array) : IRuntimeCallable
     }
 }
 
+internal sealed class ArrayAddCallable(List<object?> array) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        array.Add(arguments[0]);
+        return null;
+    }
+}
+
+internal sealed class ArrayRemoveCallable(List<object?> array) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        var index = Convert.ToInt32(arguments[0]);
+        if (index < 0 || index >= array.Count)
+        {
+            return null;
+        }
+
+        var value = array[index];
+        array.RemoveAt(index);
+        return value;
+    }
+}
+
 internal sealed class ArrayForEachCallable(List<object?> array) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
@@ -85,11 +110,58 @@ internal sealed class ArrayForEachCallable(List<object?> array) : IRuntimeCallab
     }
 }
 
-internal sealed class ObjectGetCallable(IReadOnlyDictionary<string, object?> properties) : IRuntimeCallable
+internal sealed class StringAddCallable(string text) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        return text + RuntimeValueFormatter.Format(arguments[0]);
+    }
+}
+
+internal sealed class StringRemoveCallable(string text) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        var index = Convert.ToInt32(arguments[0]);
+        if (index < 0 || index >= text.Length)
+        {
+            return text;
+        }
+
+        return text.Remove(index, 1);
+    }
+}
+
+internal sealed class ObjectGetCallable(IDictionary<string, object?> properties) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
         var name = Convert.ToString(arguments[0]) ?? string.Empty;
         return properties.TryGetValue(name, out var value) ? value : null;
+    }
+}
+
+internal sealed class ObjectAddCallable(IDictionary<string, object?> properties) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        var name = Convert.ToString(arguments[0]) ?? string.Empty;
+        properties[name] = arguments[1];
+        return null;
+    }
+}
+
+internal sealed class ObjectRemoveCallable(IDictionary<string, object?> properties) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        var name = Convert.ToString(arguments[0]) ?? string.Empty;
+        if (!properties.TryGetValue(name, out var value))
+        {
+            return null;
+        }
+
+        properties.Remove(name);
+        return value;
     }
 }

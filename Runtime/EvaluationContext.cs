@@ -172,16 +172,14 @@ internal sealed class EvaluationContext
 
         RegisterBuiltIn(corn, BuiltInSymbols.Print, new BuiltInCallable((_, arguments) =>
         {
-            _output.WriteLine(RuntimeValueFormatter.Format(arguments[0]));
+            _output.Write(RuntimeValueFormatter.Format(arguments[0]));
             return null;
         }));
 
-        RegisterBuiltIn(corn, BuiltInSymbols.Len, new BuiltInCallable((_, arguments) => arguments[0] switch
+        RegisterBuiltIn(corn, BuiltInSymbols.PrintLn, new BuiltInCallable((_, arguments) =>
         {
-            string text => (long)text.Length,
-            IReadOnlyCollection<object?> values => (long)values.Count,
-            IReadOnlyDictionary<string, object?> properties => (long)properties.Count,
-            _ => throw new InvalidOperationException("len expects a string, array, or object.")
+            _output.WriteLine(RuntimeValueFormatter.Format(arguments[0]));
+            return null;
         }));
 
         RegisterBuiltIn(corn, BuiltInSymbols.Type, new BuiltInCallable((_, arguments) => GetTypeName(arguments[0])));
@@ -201,35 +199,6 @@ internal sealed class EvaluationContext
         {
             IReadOnlyDictionary<string, object?> properties => properties.ContainsKey(Convert.ToString(arguments[1]) ?? string.Empty),
             _ => throw new InvalidOperationException("has expects an object as its first argument.")
-        }));
-
-        RegisterBuiltIn(corn, BuiltInSymbols.Push, new BuiltInCallable((_, arguments) =>
-        {
-            if (arguments[0] is not List<object?> array)
-            {
-                throw new InvalidOperationException("push expects an array.");
-            }
-
-            array.Add(arguments[1]);
-            return null;
-        }));
-
-        RegisterBuiltIn(corn, BuiltInSymbols.Pop, new BuiltInCallable((_, arguments) =>
-        {
-            if (arguments[0] is not List<object?> array)
-            {
-                throw new InvalidOperationException("pop expects an array.");
-            }
-
-            if (array.Count == 0)
-            {
-                return null;
-            }
-
-            var index = array.Count - 1;
-            var value = array[index];
-            array.RemoveAt(index);
-            return value;
         }));
 
         RegisterBuiltIn(corn, BuiltInSymbols.Clock, new BuiltInCallable((_, _) =>
@@ -353,12 +322,25 @@ internal sealed class EvaluationContext
     private object? EvaluateMemberAccessExpression(BoundMemberAccessExpression memberAccess, RuntimeEnvironment environment, SourceFile sourceFile)
     {
         var target = EvaluateExpression(memberAccess.Target, environment, sourceFile);
+        if (target is string text)
+        {
+            return memberAccess.MemberName switch
+            {
+                "len" => (long)text.Length,
+                "add" => new StringAddCallable(text),
+                "remove" => new StringRemoveCallable(text),
+                _ => throw new InvalidOperationException($"String does not contain member '{memberAccess.MemberName}'.")
+            };
+        }
+
         if (target is List<object?> array)
         {
             return memberAccess.MemberName switch
             {
                 "len" => (long)array.Count,
                 "at" => new ArrayAtCallable(array),
+                "add" => new ArrayAddCallable(array),
+                "remove" => new ArrayRemoveCallable(array),
                 "forEach" => new ArrayForEachCallable(array),
                 _ => throw new InvalidOperationException($"Array does not contain member '{memberAccess.MemberName}'.")
             };
@@ -370,9 +352,16 @@ internal sealed class EvaluationContext
             return value;
         }
 
-        if (target is IReadOnlyDictionary<string, object?> objectProperties && memberAccess.MemberName == "get")
+        if (target is IDictionary<string, object?> mutableObjectProperties)
         {
-            return new ObjectGetCallable(objectProperties);
+            return memberAccess.MemberName switch
+            {
+                "len" => (long)mutableObjectProperties.Count,
+                "get" => new ObjectGetCallable(mutableObjectProperties),
+                "add" => new ObjectAddCallable(mutableObjectProperties),
+                "remove" => new ObjectRemoveCallable(mutableObjectProperties),
+                _ => throw new InvalidOperationException($"Object does not contain member '{memberAccess.MemberName}'.")
+            };
         }
 
         throw new InvalidOperationException($"Object does not contain member '{memberAccess.MemberName}'.");

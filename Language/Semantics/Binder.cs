@@ -331,12 +331,30 @@ internal sealed class Binder
             return new BoundMemberAccessExpression(target, memberAccess.IdentifierToken.Text, TypeSymbol.Any);
         }
 
+        if (target.Type == TypeSymbol.String)
+        {
+            TypeSymbol memberType = memberAccess.IdentifierToken.Text switch
+            {
+                "len" => TypeSymbol.Int,
+                "add" => new FunctionTypeSymbol([TypeSymbol.Any], TypeSymbol.String),
+                "remove" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.String),
+                _ => TypeSymbol.Error
+            };
+
+            if (memberType != TypeSymbol.Error)
+            {
+                return new BoundMemberAccessExpression(target, memberAccess.IdentifierToken.Text, memberType);
+            }
+        }
+
         if (target.Type is ArrayTypeSymbol arrayType)
         {
             TypeSymbol memberType = memberAccess.IdentifierToken.Text switch
             {
                 "len" => TypeSymbol.Int,
                 "at" => new FunctionTypeSymbol([TypeSymbol.Int], arrayType.ElementType),
+                "add" => new FunctionTypeSymbol([arrayType.ElementType], TypeSymbol.Void),
+                "remove" => new FunctionTypeSymbol([TypeSymbol.Int], arrayType.ElementType),
                 "forEach" => new FunctionTypeSymbol(
                     [new FunctionTypeSymbol([arrayType.ElementType], TypeSymbol.Void)],
                     TypeSymbol.Void),
@@ -365,6 +383,26 @@ internal sealed class Binder
                 target,
                 memberAccess.IdentifierToken.Text,
                 new FunctionTypeSymbol([TypeSymbol.String], returnType));
+        }
+
+        if (target.Type is ObjectTypeSymbol objectMemberType)
+        {
+            var valueType = objectMemberType.Properties.Count == 0
+                ? TypeSymbol.Any
+                : objectMemberType.Properties.Values.Aggregate(GetCommonType);
+
+            TypeSymbol memberType = memberAccess.IdentifierToken.Text switch
+            {
+                "len" => TypeSymbol.Int,
+                "add" => new FunctionTypeSymbol([TypeSymbol.String, TypeSymbol.Any], TypeSymbol.Void),
+                "remove" => new FunctionTypeSymbol([TypeSymbol.String], valueType),
+                _ => TypeSymbol.Error
+            };
+
+            if (memberType != TypeSymbol.Error)
+            {
+                return new BoundMemberAccessExpression(target, memberAccess.IdentifierToken.Text, memberType);
+            }
         }
 
         Report(memberAccess.IdentifierToken.Span, $"Type '{target.Type.Name}' does not contain a member named '{memberAccess.IdentifierToken.Text}'.");

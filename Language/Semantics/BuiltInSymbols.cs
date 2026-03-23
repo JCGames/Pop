@@ -7,8 +7,12 @@ public static class BuiltInSymbols
         [new VariableSymbol("value", TypeSymbol.Any, isParameter: true)],
         TypeSymbol.Void,
         isBuiltIn: true);
+    public static FunctionSymbol PrintLn { get; } = new(
+        "println",
+        [new VariableSymbol("value", TypeSymbol.Any, isParameter: true)],
+        TypeSymbol.Void,
+        isBuiltIn: true);
 
-    public static FunctionSymbol Len { get; } = Create("len", [Parameter("value")], TypeSymbol.Int);
     public static FunctionSymbol Type { get; } = Create("type", [Parameter("value")], TypeSymbol.String);
     public static FunctionSymbol Str { get; } = Create("str", [Parameter("value")], TypeSymbol.String);
     public static FunctionSymbol Int { get; } = Create("int", [Parameter("value")], TypeSymbol.Int);
@@ -17,8 +21,6 @@ public static class BuiltInSymbols
     public static FunctionSymbol Input { get; } = Create("input", [], TypeSymbol.String);
     public static FunctionSymbol Keys { get; } = Create("keys", [Parameter("value")], new ArrayTypeSymbol(TypeSymbol.String));
     public static FunctionSymbol Has { get; } = Create("has", [Parameter("value"), Parameter("name")], TypeSymbol.Bool);
-    public static FunctionSymbol Push { get; } = Create("push", [Parameter("array"), Parameter("value")], TypeSymbol.Void);
-    public static FunctionSymbol Pop { get; } = Create("pop", [Parameter("array")], TypeSymbol.Any);
     public static FunctionSymbol Clock { get; } = Create("clock", [], TypeSymbol.Double);
     public static FunctionSymbol Read { get; } = Create("read", [Parameter("path")], TypeSymbol.String);
     public static FunctionSymbol Write { get; } = Create("write", [Parameter("path"), Parameter("text")], TypeSymbol.Void);
@@ -26,7 +28,7 @@ public static class BuiltInSymbols
     public static IReadOnlyList<FunctionSymbol> All { get; } =
     [
         Print,
-        Len,
+        PrintLn,
         Type,
         Str,
         Int,
@@ -35,8 +37,6 @@ public static class BuiltInSymbols
         Input,
         Keys,
         Has,
-        Push,
-        Pop,
         Clock,
         Read,
         Write

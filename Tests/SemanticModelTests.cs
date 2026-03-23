@@ -147,6 +147,98 @@ public sealed class SemanticModelTests
     }
 
     [TestMethod]
+    public void CreateText_BindsStringLenMember()
+    {
+        var model = SemanticModel.CreateText("var text -> \"hello\"\ntext.len");
+
+        Assert.IsEmpty(model.Diagnostics);
+        var statement = (BoundExpressionStatement)model.Root.Statements[1];
+        var lenAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.AreEqual(TypeSymbol.Int, lenAccess.Type);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsStringMutationMembers()
+    {
+        var model = SemanticModel.CreateText("var text -> \"hello\"\ntext.add\ntext.remove");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var addStatement = (BoundExpressionStatement)model.Root.Statements[1];
+        var addAccess = (BoundMemberAccessExpression)addStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(addAccess.Type);
+
+        var addType = (FunctionTypeSymbol)addAccess.Type;
+        Assert.AreEqual(TypeSymbol.String, addType.ReturnType);
+
+        var removeStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var removeAccess = (BoundMemberAccessExpression)removeStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(removeAccess.Type);
+
+        var removeType = (FunctionTypeSymbol)removeAccess.Type;
+        Assert.AreEqual(TypeSymbol.Int, removeType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.String, removeType.ReturnType);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsObjectLenMember()
+    {
+        var model = SemanticModel.CreateText("var obj -> { name: \"bob\" age: 32 }\nobj.len");
+
+        Assert.IsEmpty(model.Diagnostics);
+        var statement = (BoundExpressionStatement)model.Root.Statements[1];
+        var lenAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.AreEqual(TypeSymbol.Int, lenAccess.Type);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsObjectMutationMembers()
+    {
+        var model = SemanticModel.CreateText("var obj -> { name: \"bob\" age: 32 }\nobj.add\nobj.remove");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var addStatement = (BoundExpressionStatement)model.Root.Statements[1];
+        var addAccess = (BoundMemberAccessExpression)addStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(addAccess.Type);
+
+        var addType = (FunctionTypeSymbol)addAccess.Type;
+        Assert.AreEqual(TypeSymbol.String, addType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.Void, addType.ReturnType);
+
+        var removeStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var removeAccess = (BoundMemberAccessExpression)removeStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(removeAccess.Type);
+
+        var removeType = (FunctionTypeSymbol)removeAccess.Type;
+        Assert.AreEqual(TypeSymbol.String, removeType.ParameterTypes[0]);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsArrayMutationMembers()
+    {
+        var model = SemanticModel.CreateText("var arr -> [1, 2, 3]\narr.add\narr.remove");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var addStatement = (BoundExpressionStatement)model.Root.Statements[1];
+        var addAccess = (BoundMemberAccessExpression)addStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(addAccess.Type);
+
+        var addType = (FunctionTypeSymbol)addAccess.Type;
+        Assert.AreEqual(TypeSymbol.Int, addType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.Void, addType.ReturnType);
+
+        var removeStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var removeAccess = (BoundMemberAccessExpression)removeStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(removeAccess.Type);
+
+        var removeType = (FunctionTypeSymbol)removeAccess.Type;
+        Assert.AreEqual(TypeSymbol.Int, removeType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.Int, removeType.ReturnType);
+    }
+
+    [TestMethod]
     public void CreateText_ReportsContinueOutsideLoop()
     {
         var model = SemanticModel.CreateText("cont");

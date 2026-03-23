@@ -27,6 +27,18 @@ public sealed class RuntimeTests
         var result = runtime.ExecuteText("corn.print(\"hello\")");
 
         Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("hello", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_WritesCornBuiltInPrintLnOutput()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("corn.println(\"hello\")");
+
+        Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("hello\r\n", writer.ToString());
     }
 
@@ -42,7 +54,7 @@ public sealed class RuntimeTests
             }
 
             var total -> add(2, 3)
-            corn.print(total)
+            corn.println(total)
             """);
 
         Assert.IsTrue(result.Succeeded);
@@ -58,7 +70,7 @@ public sealed class RuntimeTests
 
         var writer = new StringWriter();
         var runtime = new ScriptRuntime(writer);
-        var source = SourceFile.FromText($"var module -> inject \"{injectedPath.Replace("\\", "\\\\")}\"\ncorn.print(module.value())");
+        var source = SourceFile.FromText($"var module -> inject \"{injectedPath.Replace("\\", "\\\\")}\"\ncorn.println(module.value())");
 
         var result = runtime.Execute(source);
 
@@ -81,7 +93,7 @@ public sealed class RuntimeTests
                     cont
                 }
 
-                corn.print(value)
+                corn.println(value)
 
                 if value == 3 {
                     abort
@@ -113,7 +125,7 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText($$"""
             var math -> inject "{{injectedPath.Replace("\\", "\\\\")}}"
-            corn.print(math.add(10, 10))
+            corn.println(math.add(10, 10))
             """);
 
         Assert.IsTrue(result.Succeeded);
@@ -127,12 +139,12 @@ public sealed class RuntimeTests
         var runtime = new ScriptRuntime(writer);
 
         var result = runtime.ExecuteText("""
-            corn.print(corn.type(1))
-            corn.print(corn.str(12))
-            corn.print(corn.int("42"))
-            corn.print(corn.double("32.5"))
-            corn.print(corn.bool(""))
-            corn.print(corn.bool("x"))
+            corn.println(corn.type(1))
+            corn.println(corn.str(12))
+            corn.println(corn.int("42"))
+            corn.println(corn.double("32.5"))
+            corn.println(corn.bool(""))
+            corn.println(corn.bool("x"))
             """);
 
         Assert.IsTrue(result.Succeeded);
@@ -146,12 +158,11 @@ public sealed class RuntimeTests
         var runtime = new ScriptRuntime(writer);
 
         var result = runtime.ExecuteText("""
-            corn.print(corn.type(1))
-            corn.print(corn.len([1, 2, 3]))
+            corn.println(corn.type(1))
             """);
 
         Assert.IsTrue(result.Succeeded);
-        Assert.AreEqual("int\r\n3\r\n", writer.ToString());
+        Assert.AreEqual("int\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -162,17 +173,12 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText("""
             var obj -> { name: "bob" age: 32 }
-            var arr -> [1, 2]
-            corn.push(arr, 3)
-            corn.print(corn.len(arr))
-            corn.print(corn.pop(arr))
-            corn.print(corn.len(arr))
-            corn.print(corn.len(corn.keys(obj)))
-            corn.print(corn.has(obj, "name"))
+            corn.println(corn.keys(obj).len)
+            corn.println(corn.has(obj, "name"))
             """);
 
         Assert.IsTrue(result.Succeeded);
-        Assert.AreEqual("3\r\n3\r\n2\r\n2\r\ntrue\r\n", writer.ToString());
+        Assert.AreEqual("2\r\ntrue\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -183,13 +189,82 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText("""
             var obj -> { name: "bob" age: 32 }
-            corn.print(obj.get("name"))
-            corn.print(obj.get("age"))
-            corn.print(obj.get("missing"))
+            corn.println(obj.get("name"))
+            corn.println(obj.get("age"))
+            corn.println(obj.get("missing"))
             """);
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("bob\r\n32\r\nnull\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesStringAndObjectLenMembers()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var text -> "hello"
+            var obj -> { name: "bob" age: 32 }
+            corn.println(text.len)
+            corn.println(obj.len)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("5\r\n2\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesStringAddAndRemoveMembers()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var text -> "hello"
+            text -> text.add("!")
+            corn.println(text)
+            text -> text.remove(1)
+            corn.println(text)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("hello!\r\nhllo!\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_PrefersExplicitObjectLenProperty()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var obj -> { len: 99 name: "bob" }
+            corn.println(obj.len)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("99\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesObjectAddAndRemoveMembers()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var obj -> { name: "bob" }
+            obj.add("age", 32)
+            corn.println(obj.len)
+            corn.println(obj.get("age"))
+            corn.println(obj.remove("name"))
+            corn.println(obj.len)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("2\r\n32\r\nbob\r\n1\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -200,13 +275,32 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText("""
             var arr -> [10, 20, 30]
-            corn.print(arr.len)
-            corn.print(arr.at(1))
-            corn.print(arr.at(10))
+            corn.println(arr.len)
+            corn.println(arr.at(1))
+            corn.println(arr.at(10))
             """);
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("3\r\n20\r\nnull\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesArrayAddAndRemoveMembers()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var arr -> [10, 20]
+            arr.add(30)
+            corn.println(arr.len)
+            corn.println(arr.remove(1))
+            corn.println(arr.len)
+            corn.println(arr.at(1))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("3\r\n20\r\n2\r\n30\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -218,7 +312,7 @@ public sealed class RuntimeTests
         var result = runtime.ExecuteText("""
             var arr -> [10, 20, 30]
             arr.forEach(@(elem) {
-                corn.print(elem)
+                corn.println(elem)
             })
             """);
 
@@ -235,7 +329,7 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText("""
             var line -> corn.input()
-            corn.print(line)
+            corn.println(line)
             """);
 
         Assert.IsTrue(result.Succeeded);
@@ -253,7 +347,7 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText($$"""
             corn.write("{{filePath.Replace("\\", "\\\\")}}", "hello file")
-            corn.print(corn.read("{{filePath.Replace("\\", "\\\\")}}"))
+            corn.println(corn.read("{{filePath.Replace("\\", "\\\\")}}"))
             """);
 
         Assert.IsTrue(result.Succeeded);

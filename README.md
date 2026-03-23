@@ -1,295 +1,64 @@
 # Pop
 
-Pop is a small interpreted language implemented in this solution with four main parts:
+Pop is a small interpreted language implemented in this solution.
 
-- `Language`: lexer, parser, syntax tree, semantic model
-- `Runtime`: interpreter and built-in runtime functions
-- `Pop`: console host for running `.pop` scripts
-- `Tests`: parser, semantic, and runtime coverage
-
-This README describes the language as it exists today.
+| Project | Purpose |
+| --- | --- |
+| `Language` | Lexer, parser, syntax tree, semantic model |
+| `Runtime` | Interpreter and runtime behavior |
+| `Pop` | Console host for running `.pop` scripts |
+| `Tests` | Parser, semantic, and runtime coverage |
 
 ## Overview
 
-Pop is currently:
+| Area | Current behavior |
+| --- | --- |
+| Variables | Declared with `var` and inferred from the initializer |
+| Types in source | Omitted for variables, parameters, and returns |
+| Execution model | Syntax tree -> semantic model -> interpreter |
+| Modules | Loaded with `inject "path"` |
+| Exports | Controlled with `public` on `var` and `fun` |
+| Built-ins | Available through the global `corn` module |
 
-- dynamically declared with `var`
-- semantically bound with inferred types
-- interpreted from the semantic model
-- file-based, with module-style imports through `inject`
+## Quick Start
 
-Types are not written in source code for variables, parameters, or function return values. The semantic layer infers what it can and falls back to `any` where appropriate.
+Run a script file:
 
-## Source Files
+```text
+dotnet run --project Pop\Pop.csproj -- Pop\Scripts\test.pop
+```
+
+Run inline source:
+
+```text
+dotnet run --project Pop\Pop.csproj -- "corn.println(1 + 2)"
+```
+
+Minimal example:
+
+```text
+public fun add(a, b) {
+    ret a + b
+}
+
+var math -> inject "math.pop"
+corn.println(math.add(10, 10))
+```
+
+## Files And Modules
 
 A source file is a sequence of statements.
 
-```text
-public fun add(a, b) {
-    ret a + b
-}
-
-var math -> inject "math.pop"
-corn.print(math.add(10, 10))
-```
-
-## Statements
-
-### Expression Statement
-
-Any expression can be used as a statement.
-
-```text
-corn.print("hello")
-obj.name
-arr.forEach(@(elem) {
-    corn.print(elem)
-})
-```
-
-### Variable Declaration
-
-Variables are declared with `var` and assigned with `->`.
-
-```text
-var a -> 32
-var b -> 32.5
-var message -> "hello"
-var arr -> [1, 2, 3]
-```
-
-Public variables are exported from injected files:
-
-```text
-public var answer -> 42
-```
-
-### Assignment
-
-Assignment also uses `->`.
-
-```text
-value -> 10
-a -> b -> c
-```
-
-Assignment chains are right-associative.
-
-### Return
-
-Use `ret` inside functions and lambdas.
-
-```text
-ret
-ret value
-ret a + b
-```
-
-### Continue
-
-Use `cont` inside loops.
-
-```text
-cont
-```
-
-### Break
-
-Use `abort` inside loops.
-
-```text
-abort
-```
-
-### While
-
-```text
-while condition {
-    if shouldSkip {
-        cont
-    }
-
-    if shouldStop {
-        abort
-    }
-
-    value -> value + 1
-}
-```
-
-### If / Else / Else If
-
-```text
-if condition {
-    value -> 1
-}
-else if otherCondition {
-    value -> 2
-}
-else {
-    value -> 3
-}
-```
-
-### Function Declaration
-
-Functions do not declare parameter types or return types.
-
-```text
-fun add(a, b) {
-    ret a + b
-}
-```
-
-Public functions are exported from injected files:
-
-```text
-public fun add(a, b) {
-    ret a + b
-}
-```
-
-## Expressions
-
-### Literals
-
-```text
-123
-32.5
-"hello"
-'x'
-true
-false
-```
-
-### Names
-
-```text
-value
-myVariable
-```
-
-### Parenthesized Expressions
-
-```text
-(a + b) * c
-```
-
-### Unary Operators
-
-```text
--value
-+value
-!flag
-~bits
-```
-
-### Binary Operators
-
-Supported operator families:
-
-```text
-a * b
-a / b
-a % b
-a + b
-a - b
-a << b
-a >> b
-a < b
-a <= b
-a > b
-a >= b
-a == b
-a != b
-a & b
-a ^ b
-a | b
-a && b
-a || b
-```
-
-### Conditional Expression
-
-```text
-condition ? whenTrue : whenFalse
-```
-
-### Call Expression
-
-```text
-nameOfFunction(arg1, arg2)
-getHandler()(value)
-```
-
-### Member Access
-
-```text
-obj.name
-makePerson().name
-```
-
-### Object Literals
-
-```text
-{
-    name: "bob"
-    location: "france"
-    age: 32
-}
-```
+`inject` is an expression, not a statement. It executes another `.pop` file in isolated module scope and returns an object containing only that file's `public` variables and functions.
 
 Example:
 
 ```text
-var obj -> {
-    name: "bob"
-    location: "france"
-    age: 32
-}
-```
-
-### Array Literals
-
-Elements can be any expression type.
-
-```text
-[elem1, elem2, elem3]
-[1, "hello", obj.name, add(1, 2), { age: 32 }, @(x) { ret x }]
-```
-
-### Lambda Expressions
-
-Lambdas do not declare parameter types or return types.
-
-```text
-@(param1, param2) {
-    ret param1 + param2
-}
-```
-
-Example:
-
-```text
-var transform -> @(value) {
-    ret value + 1
-}
-```
-
-### Inject Expression
-
-`inject` is an expression, not a statement. It loads another `.pop` file, executes it in isolated module scope, and returns an object containing only its `public` variables and functions.
-
-```text
 var math -> inject "math.pop"
-corn.print(math.add(10, 10))
+corn.println(math.add(1, 2))
 ```
 
-## Modules And Visibility
-
-Only `public` declarations are exposed to an injecting file.
-
-`math.pop`:
+Example exported module:
 
 ```text
 public fun add(a, b) {
@@ -301,216 +70,208 @@ fun hidden() {
 }
 ```
 
-consumer:
+`hidden` is not visible to the importing file.
+
+## Statements
+
+| Statement | Syntax | Notes |
+| --- | --- | --- |
+| Expression statement | `expr` | Any expression can stand alone |
+| Variable declaration | `var name -> expr` | Type inferred from initializer |
+| Public variable | `public var name -> expr` | Exported from injected file |
+| Assignment | `name -> expr` | Right-associative, so `a -> b -> c` works |
+| Return | `ret` or `ret expr` | Valid only in functions and lambdas |
+| Continue | `cont` | Valid only in loops |
+| Break | `abort` | Valid only in loops |
+| While | `while condition { ... }` | Condition must be `bool` |
+| If | `if condition { ... }` | Condition must be `bool` |
+| Else if | `else if condition { ... }` | Chains with `if` |
+| Else | `else { ... }` | Fallback branch |
+| Function declaration | `fun name(a, b) { ... }` | No explicit parameter or return types |
+| Public function | `public fun name(a, b) { ... }` | Exported from injected file |
+
+Examples:
 
 ```text
-var math -> inject "math.pop"
-corn.print(math.add(1, 2))
+var value -> 10
+value -> value + 1
+
+while true {
+    if value == 2 {
+        cont
+    }
+
+    if value == 3 {
+        abort
+    }
+}
 ```
 
-`math.hidden` is not available outside the file.
+## Expressions
+
+| Expression kind | Example |
+| --- | --- |
+| Integer literal | `123` |
+| Double literal | `32.5` |
+| String literal | `"hello"` |
+| Char literal | `'x'` |
+| Bool literal | `true`, `false` |
+| Name | `value` |
+| Parenthesized | `(a + b) * c` |
+| Unary | `-value`, `+value`, `!flag`, `~bits` |
+| Binary | `a + b`, `a * b`, `a == b`, `a && b` |
+| Conditional | `condition ? whenTrue : whenFalse` |
+| Call | `add(1, 2)` |
+| Member access | `obj.name`, `text.len` |
+| Object literal | `{ name: "bob" age: 32 }` |
+| Array literal | `[1, 2, 3]` |
+| Lambda | `@(x) { ret x + 1 }` |
+| Inject | `inject "math.pop"` |
+
+Supported binary operators:
+
+```text
+* / % + - << >> < <= > >= == != & ^ | && ||
+```
 
 ## Semantic Model
 
 The semantic layer binds the syntax tree into a typed bound tree.
 
-Current behavior:
+| Area | Current behavior |
+| --- | --- |
+| `var` | Infers type from initializer |
+| Function parameters | Bind as `any` |
+| Lambda parameters | Bind as `any` |
+| Function returns | Inferred from `ret` |
+| Lambda returns | Inferred from `ret` |
+| Object literals | Structural property types |
+| Arrays | Infer a common element type when possible |
+| Injected modules | Bound as object-like exported values |
 
-- `var` infers its type from the initializer
-- function parameters are currently `any`
-- lambda parameters are currently `any`
-- function and lambda return types are inferred from `ret`
-- object literals have structural property types
-- arrays infer a common element type when possible
-- module exports are represented as object-like values
+Reported diagnostics include:
 
-The semantic model also reports diagnostics for:
+| Diagnostic category | Examples |
+| --- | --- |
+| Undefined names | Unknown variables/functions |
+| Duplicate declarations | Same variable/function/property twice |
+| Invalid member access | Missing members on a type |
+| Invalid assignment | Incompatible assignment target/type |
+| Invalid conditions | Non-`bool` conditions in `if`, `while`, `?:` |
+| Invalid flow statements | `ret` outside functions/lambdas, `cont` or `abort` outside loops |
 
-- undefined names
-- duplicate declarations
-- duplicate object properties
-- invalid member access
-- invalid assignment types
-- invalid conditions in `if`, `while`, and `?:`
-- invalid `ret` outside functions/lambdas
-- invalid `cont` / `abort` outside loops
-
-## Runtime Behavior
+## Runtime
 
 The runtime evaluates the semantic model directly.
 
-Supported runtime features:
-
-- variables and assignment
-- functions and lambdas
-- closures
-- `if`, `while`, `ret`, `cont`, `abort`
-- objects and arrays
-- module injection through `inject`
-- built-in functions
+| Supported behavior | Status |
+| --- | --- |
+| Variables and assignment | Yes |
+| Functions and lambdas | Yes |
+| Closures | Yes |
+| `if`, `while`, `ret`, `cont`, `abort` | Yes |
+| Objects and arrays | Yes |
+| Module injection | Yes |
+| Built-in `corn` module | Yes |
 
 ## Built-In Module
 
-Every script starts with a built-in module named `corn` already available in global scope.
-
-`corn` is created before user code runs and exposes the built-in runtime functions available to every script.
+Every script starts with a global module named `corn`.
 
 Examples:
 
 ```text
 corn.print("hello")
-corn.print(corn.type(1))
-corn.print(corn.len([1, 2, 3]))
+corn.println(corn.type(1))
+corn.println([1, 2, 3].len)
 ```
 
-## Built-In Corn Functions
+### Corn Functions
 
-### `print(value)`
+| Function | Description | Return |
+| --- | --- | --- |
+| `corn.print(value)` | Writes formatted output without a newline | `null` |
+| `corn.println(value)` | Writes formatted output with a newline | `null` |
+| `corn.type(value)` | Returns the runtime type name | `string` |
+| `corn.str(value)` | Formats a value as text | `string` |
+| `corn.int(value)` | Converts to integer when possible | `int` |
+| `corn.double(value)` | Converts to double when possible | `double` |
+| `corn.bool(value)` | Converts to bool | `bool` |
+| `corn.input()` | Reads one input line | `string` |
+| `corn.keys(obj)` | Returns object property names | `array` |
+| `corn.has(obj, name)` | Checks whether an object contains a property | `bool` |
+| `corn.clock()` | Returns UTC Unix time in seconds | `double` |
+| `corn.read(path)` | Reads a file as text | `string` |
+| `corn.write(path, text)` | Writes text to a file | `null` |
 
-Writes a formatted value to the output writer.
+`corn.type(value)` currently returns names such as `int`, `double`, `bool`, `char`, `string`, `array`, `object`, `function`, and `null`.
 
-### `len(value)`
+## Built-In Member APIs
 
-Returns the length of:
+### Strings
 
-- a string
-- an array
-- an object (property count)
+| Member | Description | Return |
+| --- | --- | --- |
+| `text.len` | Number of characters | `int` |
+| `text.add(item)` | Returns a new string with the formatted item appended | `string` |
+| `text.remove(index)` | Returns a new string with the character at `index` removed; out-of-range returns the original string | `string` |
 
-### `type(value)`
+Example:
 
-Returns a string such as:
+```text
+var text -> "hello"
+text -> text.add("!")
+text -> text.remove(1)
+corn.println(text)
+```
 
-- `"int"`
-- `"double"`
-- `"bool"`
-- `"char"`
-- `"string"`
-- `"array"`
-- `"object"`
-- `"function"`
-- `"null"`
+### Arrays
 
-### `str(value)`
+| Member | Description | Return |
+| --- | --- | --- |
+| `arr.len` | Number of elements | `int` |
+| `arr.at(index)` | Element at `index`, or `null` if out of range | element type or `null` |
+| `arr.add(item)` | Appends an item in place | `null` |
+| `arr.remove(index)` | Removes and returns the item at `index`, or `null` if out of range | element type or `null` |
+| `arr.forEach(@(elem) { ... })` | Invokes the lambda once per element | `null` |
 
-Formats a value as a string.
-
-### `int(value)`
-
-Converts a value to `int` when possible.
-
-### `double(value)`
-
-Converts a value to `double` when possible.
-
-### `bool(value)`
-
-Converts a value to `bool`.
-
-### `input()`
-
-Reads one line of input.
-
-### `keys(obj)`
-
-Returns an array of object property names.
-
-### `has(obj, name)`
-
-Returns whether an object contains a property.
-
-### `push(array, value)`
-
-Appends a value to an array.
-
-### `pop(array)`
-
-Removes and returns the last value from an array. Returns `null` for an empty array.
-
-### `clock()`
-
-Returns the current UTC Unix time as a `double` number of seconds.
-
-### `read(path)`
-
-Reads a file as text.
-
-### `write(path, text)`
-
-Writes text to a file.
-
-## Built-In Array Members
-
-Arrays expose native members through `.` access.
-
-### `arr.len`
-
-Returns the number of elements in the array.
+Example:
 
 ```text
 var arr -> [10, 20, 30]
-corn.print(arr.len)
-```
-
-### `arr.at(index)`
-
-Returns the element at the given index, or `null` if out of range.
-
-```text
-var arr -> [10, 20, 30]
-corn.print(arr.at(1))
-```
-
-### `arr.forEach(@(elem) { ... })`
-
-Invokes the given callable once for each element.
-
-```text
-var arr -> [10, 20, 30]
+arr.add(40)
+corn.println(arr.remove(1))
 arr.forEach(@(elem) {
-    corn.print(elem)
+    corn.println(elem)
 })
 ```
 
-## Built-In Object Members
+### Objects
 
-Objects expose native members through `.` access.
+| Member | Description | Return |
+| --- | --- | --- |
+| `obj.len` | Number of members, unless the object already defines a real `len` property | `int` or property value |
+| `obj.get(name)` | Gets a property by string key | property value or `null` |
+| `obj.add(name, value)` | Adds or replaces a property in place | `null` |
+| `obj.remove(name)` | Removes and returns a property value | property value or `null` |
 
-### `obj.get(propertyName)`
-
-Returns the property value for the given string key, or `null` if the property does not exist.
-
-```text
-var obj -> {
-    name: "bob"
-    age: 32
-}
-
-corn.print(obj.get("name"))
-corn.print(obj.get("missing"))
-```
-
-## Notes And Current Limitations
-
-- Assignment and declaration use `->`, not `=`.
-- Functions do not declare explicit types.
-- Parameters are untyped in source and currently bind as `any`.
-- Built-in runtime functions are available through the global `corn` module.
-- Arrays support `.len`, `.at(index)`, and `.forEach(...)`, but do not support `arr[index]` syntax.
-- Increment/decrement operators like `i++` are not implemented.
-- Objects support `.get(propertyName)` for string-based property access.
-- `inject` is module-style and expression-based; it is no longer a standalone statement form.
-
-## Running Scripts
-
-Run the console host with a `.pop` file:
+Example:
 
 ```text
-dotnet run --project Pop\Pop.csproj -- Pop\Scripts\test.pop
+var obj -> { name: "bob" }
+obj.add("age", 32)
+corn.println(obj.get("age"))
+corn.println(obj.remove("name"))
 ```
 
-Or pass inline source:
+## Notes And Limitations
 
-```text
-dotnet run --project Pop\Pop.csproj -- "corn.print(1 + 2)"
-```
+| Area | Current limitation |
+| --- | --- |
+| Assignment syntax | Uses `->`, not `=` |
+| Type syntax | No explicit source-level type annotations |
+| Parameters | Always untyped in source |
+| Built-ins | Only exposed through `corn` |
+| Array indexing | `arr[index]` syntax is not implemented |
+| Increment/decrement | `i++` and `i--` are not implemented |
+| Inject | Expression-based only; no standalone `inject` statement form |
