@@ -332,6 +332,11 @@ internal sealed class Binder
         var target = BindExpression(call.Target);
         var arguments = call.Arguments.Select(BindExpression).ToArray();
 
+        if (target.Type == TypeSymbol.Any)
+        {
+            return new BoundCallExpression(target, arguments, TypeSymbol.Any);
+        }
+
         if (target.Type is not FunctionTypeSymbol functionType)
         {
             Report(call.Target.Span, "Only function values can be called.");

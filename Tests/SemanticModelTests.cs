@@ -112,6 +112,19 @@ public sealed class SemanticModelTests
     }
 
     [TestMethod]
+    public void CreateText_AllowsCallsOnAnyTypedMembers()
+    {
+        var model = SemanticModel.CreateText("""
+            fun max(arr) {
+                arr.forEach(@(number) {
+                })
+            }
+            """);
+
+        Assert.IsEmpty(model.Diagnostics);
+    }
+
+    [TestMethod]
     public void CreateText_BindsInjectExpressionAsModuleObject()
     {
         var directory = Directory.CreateTempSubdirectory();
