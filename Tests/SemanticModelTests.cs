@@ -181,6 +181,42 @@ public sealed class SemanticModelTests
     }
 
     [TestMethod]
+    public void CreateText_BindsStringAtMember()
+    {
+        var model = SemanticModel.CreateText("var text -> \"hello\"\ntext.at");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var statement = (BoundExpressionStatement)model.Root.Statements[1];
+        var atAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(atAccess.Type);
+
+        var atType = (FunctionTypeSymbol)atAccess.Type;
+        Assert.AreEqual(TypeSymbol.Int, atType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.Char, atType.ReturnType);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsStringForEachMember()
+    {
+        var model = SemanticModel.CreateText("var text -> \"hello\"\ntext.forEach");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var statement = (BoundExpressionStatement)model.Root.Statements[1];
+        var forEachAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(forEachAccess.Type);
+
+        var forEachType = (FunctionTypeSymbol)forEachAccess.Type;
+        Assert.AreEqual(TypeSymbol.Void, forEachType.ReturnType);
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(forEachType.ParameterTypes[0]);
+
+        var callbackType = (FunctionTypeSymbol)forEachType.ParameterTypes[0];
+        Assert.AreEqual(TypeSymbol.Char, callbackType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.Void, callbackType.ReturnType);
+    }
+
+    [TestMethod]
     public void CreateText_BindsObjectLenMember()
     {
         var model = SemanticModel.CreateText("var obj -> { name: \"bob\" age: 32 }\nobj.len");
@@ -212,6 +248,26 @@ public sealed class SemanticModelTests
 
         var removeType = (FunctionTypeSymbol)removeAccess.Type;
         Assert.AreEqual(TypeSymbol.String, removeType.ParameterTypes[0]);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsObjectForEachMember()
+    {
+        var model = SemanticModel.CreateText("var obj -> { name: \"bob\" age: 32 }\nobj.forEach");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var statement = (BoundExpressionStatement)model.Root.Statements[1];
+        var forEachAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(forEachAccess.Type);
+
+        var forEachType = (FunctionTypeSymbol)forEachAccess.Type;
+        Assert.AreEqual(TypeSymbol.Void, forEachType.ReturnType);
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(forEachType.ParameterTypes[0]);
+
+        var callbackType = (FunctionTypeSymbol)forEachType.ParameterTypes[0];
+        Assert.AreEqual(TypeSymbol.String, callbackType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.Void, callbackType.ReturnType);
     }
 
     [TestMethod]

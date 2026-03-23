@@ -234,6 +234,39 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_EvaluatesStringAtMember()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var text -> "hello"
+            corn.println(text.at(1))
+            corn.println(text.at(10))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("e\r\nnull\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesStringForEach()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var text -> "hey"
+            text.forEach(@(character) {
+                corn.println(character)
+            })
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("h\r\ne\r\ny\r\n", writer.ToString());
+    }
+
+    [TestMethod]
     public void ExecuteText_PrefersExplicitObjectLenProperty()
     {
         var writer = new StringWriter();
@@ -265,6 +298,24 @@ public sealed class RuntimeTests
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("2\r\n32\r\nbob\r\n1\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesObjectForEach()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var obj -> { name: "bob" age: 32 }
+            obj.forEach(@(key, value) {
+                corn.println(key)
+                corn.println(value)
+            })
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("name\r\nbob\r\nage\r\n32\r\n", writer.ToString());
     }
 
     [TestMethod]

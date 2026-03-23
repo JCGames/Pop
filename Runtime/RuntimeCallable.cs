@@ -110,11 +110,43 @@ internal sealed class ArrayForEachCallable(List<object?> array) : IRuntimeCallab
     }
 }
 
+internal sealed class StringForEachCallable(string text) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        if (arguments[0] is not IRuntimeCallable callable)
+        {
+            throw new InvalidOperationException("forEach expects a callable argument.");
+        }
+
+        foreach (var character in text)
+        {
+            callable.Invoke(context, [character]);
+        }
+
+        return null;
+    }
+}
+
 internal sealed class StringAddCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
         return text + RuntimeValueFormatter.Format(arguments[0]);
+    }
+}
+
+internal sealed class StringAtCallable(string text) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        var index = Convert.ToInt32(arguments[0]);
+        if (index < 0 || index >= text.Length)
+        {
+            return null;
+        }
+
+        return text[index];
     }
 }
 
@@ -163,5 +195,23 @@ internal sealed class ObjectRemoveCallable(IDictionary<string, object?> properti
 
         properties.Remove(name);
         return value;
+    }
+}
+
+internal sealed class ObjectForEachCallable(IDictionary<string, object?> properties) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        if (arguments[0] is not IRuntimeCallable callable)
+        {
+            throw new InvalidOperationException("forEach expects a callable argument.");
+        }
+
+        foreach (var pair in properties)
+        {
+            callable.Invoke(context, [pair.Key, pair.Value]);
+        }
+
+        return null;
     }
 }

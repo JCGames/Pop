@@ -227,13 +227,19 @@ corn.println([1, 2, 3].len)
 | Member | Description | Return |
 | --- | --- | --- |
 | `text.len` | Number of characters | `int` |
+| `text.at(index)` | Character at `index`, or `null` if out of range | `char` or `null` |
 | `text.add(item)` | Returns a new string with the formatted item appended | `string` |
 | `text.remove(index)` | Returns a new string with the character at `index` removed; out-of-range returns the original string | `string` |
+| `text.forEach(@(character) { ... })` | Invokes the lambda once per character | `null` |
 
 Example:
 
 ```text
 var text -> "hello"
+corn.println(text.at(1))
+text.forEach(@(character) {
+    corn.println(character)
+})
 text -> text.add("!")
 text -> text.remove(1)
 corn.println(text)
@@ -268,6 +274,7 @@ arr.forEach(@(elem) {
 | `obj.get(name)` | Gets a property by string key | property value or `null` |
 | `obj.add(name, value)` | Adds or replaces a property in place | `null` |
 | `obj.remove(name)` | Removes and returns a property value | property value or `null` |
+| `obj.forEach(@(key, value) { ... })` | Invokes the lambda once per member pair | `null` |
 
 Example:
 
@@ -275,6 +282,10 @@ Example:
 var obj -> { name: "bob" }
 obj.add("age", 32)
 corn.println(obj.get("age"))
+obj.forEach(@(key, value) {
+    corn.println(key)
+    corn.println(value)
+})
 corn.println(obj.remove("name"))
 ```
 

@@ -327,8 +327,10 @@ internal sealed class EvaluationContext
             return memberAccess.MemberName switch
             {
                 "len" => (long)text.Length,
+                "at" => new StringAtCallable(text),
                 "add" => new StringAddCallable(text),
                 "remove" => new StringRemoveCallable(text),
+                "forEach" => new StringForEachCallable(text),
                 _ => throw new InvalidOperationException($"String does not contain member '{memberAccess.MemberName}'.")
             };
         }
@@ -360,6 +362,7 @@ internal sealed class EvaluationContext
                 "get" => new ObjectGetCallable(mutableObjectProperties),
                 "add" => new ObjectAddCallable(mutableObjectProperties),
                 "remove" => new ObjectRemoveCallable(mutableObjectProperties),
+                "forEach" => new ObjectForEachCallable(mutableObjectProperties),
                 _ => throw new InvalidOperationException($"Object does not contain member '{memberAccess.MemberName}'.")
             };
         }

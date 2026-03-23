@@ -336,8 +336,12 @@ internal sealed class Binder
             TypeSymbol memberType = memberAccess.IdentifierToken.Text switch
             {
                 "len" => TypeSymbol.Int,
+                "at" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.Char),
                 "add" => new FunctionTypeSymbol([TypeSymbol.Any], TypeSymbol.String),
                 "remove" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.String),
+                "forEach" => new FunctionTypeSymbol(
+                    [new FunctionTypeSymbol([TypeSymbol.Char], TypeSymbol.Void)],
+                    TypeSymbol.Void),
                 _ => TypeSymbol.Error
             };
 
@@ -396,6 +400,9 @@ internal sealed class Binder
                 "len" => TypeSymbol.Int,
                 "add" => new FunctionTypeSymbol([TypeSymbol.String, TypeSymbol.Any], TypeSymbol.Void),
                 "remove" => new FunctionTypeSymbol([TypeSymbol.String], valueType),
+                "forEach" => new FunctionTypeSymbol(
+                    [new FunctionTypeSymbol([TypeSymbol.String, valueType], TypeSymbol.Void)],
+                    TypeSymbol.Void),
                 _ => TypeSymbol.Error
             };
 
