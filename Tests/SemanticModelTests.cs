@@ -184,6 +184,38 @@ public sealed class SemanticModelTests
     }
 
     [TestMethod]
+    public void CreateText_BindsIntMinAndMaxMembers()
+    {
+        var model = SemanticModel.CreateText("var value -> 1\nvalue.min\nvalue.max");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var minStatement = (BoundExpressionStatement)model.Root.Statements[1];
+        var minAccess = (BoundMemberAccessExpression)minStatement.Expression;
+        Assert.AreEqual(TypeSymbol.Int, minAccess.Type);
+
+        var maxStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var maxAccess = (BoundMemberAccessExpression)maxStatement.Expression;
+        Assert.AreEqual(TypeSymbol.Int, maxAccess.Type);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsDoubleMinAndMaxMembers()
+    {
+        var model = SemanticModel.CreateText("var value -> 1.5\nvalue.min\nvalue.max");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var minStatement = (BoundExpressionStatement)model.Root.Statements[1];
+        var minAccess = (BoundMemberAccessExpression)minStatement.Expression;
+        Assert.AreEqual(TypeSymbol.Double, minAccess.Type);
+
+        var maxStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var maxAccess = (BoundMemberAccessExpression)maxStatement.Expression;
+        Assert.AreEqual(TypeSymbol.Double, maxAccess.Type);
+    }
+
+    [TestMethod]
     public void CreateText_BindsStringMutationMembers()
     {
         var model = SemanticModel.CreateText("var text -> \"hello\"\ntext.add\ntext.contains\ntext.insert\ntext.replace\ntext.remove");

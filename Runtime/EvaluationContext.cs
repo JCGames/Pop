@@ -336,6 +336,26 @@ internal sealed class EvaluationContext
     private object? EvaluateMemberAccessExpression(BoundMemberAccessExpression memberAccess, RuntimeEnvironment environment, SourceFile sourceFile)
     {
         var target = EvaluateExpression(memberAccess.Target, environment, sourceFile);
+        if (target is long integer)
+        {
+            return memberAccess.MemberName switch
+            {
+                "min" => long.MinValue,
+                "max" => long.MaxValue,
+                _ => throw new InvalidOperationException($"Int does not contain member '{memberAccess.MemberName}'.")
+            };
+        }
+
+        if (target is double floating)
+        {
+            return memberAccess.MemberName switch
+            {
+                "min" => double.MinValue,
+                "max" => double.MaxValue,
+                _ => throw new InvalidOperationException($"Double does not contain member '{memberAccess.MemberName}'.")
+            };
+        }
+
         if (target is string text)
         {
             return memberAccess.MemberName switch

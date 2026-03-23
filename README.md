@@ -258,6 +258,24 @@ text -> text.remove(1)
 corn.println(text)
 ```
 
+### Numbers
+
+| Member | Description | Return |
+| --- | --- | --- |
+| `number.min` | Minimum value for the number's runtime type | `int` or `double` |
+| `number.max` | Maximum value for the number's runtime type | `int` or `double` |
+
+Example:
+
+```text
+var count -> 1
+var ratio -> 1.5
+corn.println(count.min)
+corn.println(count.max)
+corn.println(ratio.min)
+corn.println(ratio.max)
+```
+
 ### Arrays
 
 | Member | Description | Return |

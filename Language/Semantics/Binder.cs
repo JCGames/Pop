@@ -362,6 +362,21 @@ internal sealed class Binder
             return new BoundMemberAccessExpression(target, memberAccess.IdentifierToken.Text, TypeSymbol.Any);
         }
 
+        if (target.Type == TypeSymbol.Int || target.Type == TypeSymbol.Double)
+        {
+            TypeSymbol memberType = memberAccess.IdentifierToken.Text switch
+            {
+                "min" => target.Type,
+                "max" => target.Type,
+                _ => TypeSymbol.Error
+            };
+
+            if (memberType != TypeSymbol.Error)
+            {
+                return new BoundMemberAccessExpression(target, memberAccess.IdentifierToken.Text, memberType);
+            }
+        }
+
         if (target.Type == TypeSymbol.String)
         {
             TypeSymbol memberType = memberAccess.IdentifierToken.Text switch

@@ -167,6 +167,38 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_EvaluatesIntMinAndMaxMembers()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> 1
+            corn.println(value.min)
+            corn.println(value.max)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual($"{long.MinValue}\r\n{long.MaxValue}\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesDoubleMinAndMaxMembers()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> 1.5
+            corn.println(value.min)
+            corn.println(value.max)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual($"{double.MinValue}\r\n{double.MaxValue}\r\n", writer.ToString());
+    }
+
+    [TestMethod]
     public void ExecuteText_EvaluatesNilLiteral()
     {
         var writer = new StringWriter();
