@@ -369,6 +369,7 @@ internal sealed class Binder
                 "len" => TypeSymbol.Int,
                 "at" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.Char),
                 "add" => new FunctionTypeSymbol([TypeSymbol.Any], TypeSymbol.String),
+                "insert" => new FunctionTypeSymbol([TypeSymbol.Int, TypeSymbol.Any], TypeSymbol.String),
                 "replace" => new FunctionTypeSymbol([TypeSymbol.Int, TypeSymbol.Any], TypeSymbol.String),
                 "remove" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.String),
                 "forEach" => new FunctionTypeSymbol(
@@ -390,6 +391,7 @@ internal sealed class Binder
                 "len" => TypeSymbol.Int,
                 "at" => new FunctionTypeSymbol([TypeSymbol.Int], arrayType.ElementType),
                 "add" => new FunctionTypeSymbol([arrayType.ElementType], TypeSymbol.Void),
+                "insert" => new FunctionTypeSymbol([TypeSymbol.Int, arrayType.ElementType], TypeSymbol.Void),
                 "replace" => new FunctionTypeSymbol([TypeSymbol.Int, arrayType.ElementType], arrayType.ElementType),
                 "remove" => new FunctionTypeSymbol([TypeSymbol.Int], arrayType.ElementType),
                 "forEach" => new FunctionTypeSymbol(

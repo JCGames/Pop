@@ -236,6 +236,7 @@ corn.println([1, 2, 3].len)
 | `text.len` | Number of characters | `int` |
 | `text.at(index)` | Character at `index`, or `null` if out of range | `char` or `null` |
 | `text.add(item)` | Returns a new string with the formatted item appended | `string` |
+| `text.insert(index, item)` | Returns a new string with the formatted item inserted at `index`; out-of-range clamps to the start or end | `string` |
 | `text.replace(index, item)` | Returns a new string with the character at `index` replaced by the formatted item; out-of-range returns the original string | `string` |
 | `text.remove(index)` | Returns a new string with the character at `index` removed; out-of-range returns the original string | `string` |
 | `text.forEach(@(character) { ... })` | Invokes the lambda once per character | `null` |
@@ -248,6 +249,7 @@ corn.println(text.at(1))
 text.forEach(@(character) {
     corn.println(character)
 })
+text -> text.insert(2, "l")
 text -> text.replace(1, "a")
 text -> text.add("!")
 text -> text.remove(1)
@@ -261,6 +263,7 @@ corn.println(text)
 | `arr.len` | Number of elements | `int` |
 | `arr.at(index)` | Element at `index`, or `null` if out of range | element type or `null` |
 | `arr.add(item)` | Appends an item in place | `null` |
+| `arr.insert(index, item)` | Inserts an item in place; out-of-range clamps to the start or end | `null` |
 | `arr.replace(index, item)` | Replaces an item in place and returns the previous value, or `null` if out of range | element type or `null` |
 | `arr.remove(index)` | Removes and returns the item at `index`, or `null` if out of range | element type or `null` |
 | `arr.forEach(@(elem) { ... })` | Invokes the lambda once per element | `null` |
@@ -270,6 +273,7 @@ Example:
 ```text
 var arr -> [10, 20, 30]
 arr.add(40)
+arr.insert(1, 15)
 corn.println(arr.replace(1, 99))
 corn.println(arr.remove(1))
 arr.forEach(@(elem) {

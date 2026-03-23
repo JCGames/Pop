@@ -268,6 +268,24 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_EvaluatesStringInsertMember()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var text -> "helo"
+            text -> text.insert(2, "l")
+            corn.println(text)
+            text -> text.insert(99, "!")
+            corn.println(text)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("hello\r\nhello!\r\n", writer.ToString());
+    }
+
+    [TestMethod]
     public void ExecuteText_EvaluatesStringAtMember()
     {
         var writer = new StringWriter();
@@ -421,6 +439,25 @@ public sealed class RuntimeTests
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("20\r\n99\r\nnull\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesArrayInsertMember()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var arr -> [10, 30]
+            arr.insert(1, 20)
+            corn.println(arr.len)
+            corn.println(arr.at(1))
+            arr.insert(99, 40)
+            corn.println(arr.at(3))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("3\r\n20\r\n40\r\n", writer.ToString());
     }
 
     [TestMethod]
