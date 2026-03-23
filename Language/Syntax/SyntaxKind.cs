@@ -21,6 +21,7 @@ public enum SyntaxKind
     ElseKeyword,
     TrueKeyword,
     FalseKeyword,
+    NilKeyword,
     OpenParenToken,
     CloseParenToken,
     OpenBracketToken,

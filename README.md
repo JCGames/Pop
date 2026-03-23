@@ -94,6 +94,7 @@ count -> count + 1 // increment it
 | Variable declaration | `var name -> expr` | Type inferred from initializer |
 | Public variable | `public var name -> expr` | Exported from injected file |
 | Assignment | `name -> expr` | Right-associative, so `a -> b -> c` works |
+| Member assignment | `obj.name -> expr` | Assigns or creates an object member |
 | Return | `ret` or `ret expr` | Valid only in functions and lambdas |
 | Continue | `cont` | Valid only in loops |
 | Break | `abort` | Valid only in loops |
@@ -109,6 +110,10 @@ Examples:
 ```text
 var value -> 10
 value -> value + 1
+
+var obj -> { name: "bob" }
+obj.name -> 1
+obj.age -> 32
 
 while true {
     if value == 2 {
@@ -130,6 +135,7 @@ while true {
 | String literal | `"hello"` |
 | Char literal | `'x'` |
 | Bool literal | `true`, `false` |
+| Nil literal | `nil` |
 | Name | `value` |
 | Parenthesized | `(a + b) * c` |
 | Unary | `-value`, `+value`, `!flag`, `~bits` |
@@ -155,6 +161,7 @@ The semantic layer binds the syntax tree into a typed bound tree.
 | Area | Current behavior |
 | --- | --- |
 | `var` | Infers type from initializer |
+| `nil` | Binds as the `nil` type and represents a null runtime value |
 | Function parameters | Bind as `any` |
 | Lambda parameters | Bind as `any` |
 | Function returns | Inferred from `ret` |
@@ -218,7 +225,7 @@ corn.println([1, 2, 3].len)
 | `corn.read(path)` | Reads a file as text | `string` |
 | `corn.write(path, text)` | Writes text to a file | `null` |
 
-`corn.type(value)` currently returns names such as `int`, `double`, `bool`, `char`, `string`, `array`, `object`, `function`, and `null`.
+`corn.type(value)` currently returns names such as `int`, `double`, `bool`, `char`, `string`, `array`, `object`, `function`, and `nil`.
 
 ## Built-In Member APIs
 
@@ -229,6 +236,7 @@ corn.println([1, 2, 3].len)
 | `text.len` | Number of characters | `int` |
 | `text.at(index)` | Character at `index`, or `null` if out of range | `char` or `null` |
 | `text.add(item)` | Returns a new string with the formatted item appended | `string` |
+| `text.replace(index, item)` | Returns a new string with the character at `index` replaced by the formatted item; out-of-range returns the original string | `string` |
 | `text.remove(index)` | Returns a new string with the character at `index` removed; out-of-range returns the original string | `string` |
 | `text.forEach(@(character) { ... })` | Invokes the lambda once per character | `null` |
 
@@ -240,6 +248,7 @@ corn.println(text.at(1))
 text.forEach(@(character) {
     corn.println(character)
 })
+text -> text.replace(1, "a")
 text -> text.add("!")
 text -> text.remove(1)
 corn.println(text)
@@ -252,6 +261,7 @@ corn.println(text)
 | `arr.len` | Number of elements | `int` |
 | `arr.at(index)` | Element at `index`, or `null` if out of range | element type or `null` |
 | `arr.add(item)` | Appends an item in place | `null` |
+| `arr.replace(index, item)` | Replaces an item in place and returns the previous value, or `null` if out of range | element type or `null` |
 | `arr.remove(index)` | Removes and returns the item at `index`, or `null` if out of range | element type or `null` |
 | `arr.forEach(@(elem) { ... })` | Invokes the lambda once per element | `null` |
 
@@ -260,6 +270,7 @@ Example:
 ```text
 var arr -> [10, 20, 30]
 arr.add(40)
+corn.println(arr.replace(1, 99))
 corn.println(arr.remove(1))
 arr.forEach(@(elem) {
     corn.println(elem)
@@ -297,6 +308,7 @@ corn.println(obj.remove("name"))
 | Type syntax | No explicit source-level type annotations |
 | Parameters | Always untyped in source |
 | Built-ins | Only exposed through `corn` |
+| Null literal | Use `nil` to produce a null runtime value |
 | Array indexing | `arr[index]` syntax is not implemented |
 | Increment/decrement | `i++` and `i--` are not implemented |
 | Inject | Expression-based only; no standalone `inject` statement form |

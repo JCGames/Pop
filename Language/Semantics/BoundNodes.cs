@@ -141,6 +141,18 @@ public sealed class BoundAssignmentExpression(VariableSymbol variable, BoundExpr
     public override BoundNodeKind Kind => BoundNodeKind.AssignmentExpression;
 }
 
+public sealed class BoundMemberAssignmentExpression(
+    BoundExpression target,
+    string memberName,
+    BoundExpression expression,
+    TypeSymbol type) : BoundExpression(type)
+{
+    public BoundExpression Target { get; } = target;
+    public string MemberName { get; } = memberName;
+    public BoundExpression Expression { get; } = expression;
+    public override BoundNodeKind Kind => BoundNodeKind.AssignmentExpression;
+}
+
 public sealed class BoundUnaryExpression(
     SyntaxKind operatorKind,
     BoundExpression operand,

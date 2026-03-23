@@ -159,10 +159,26 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText("""
             corn.println(corn.type(1))
+            corn.println(corn.type(nil))
             """);
 
         Assert.IsTrue(result.Succeeded);
-        Assert.AreEqual("int\r\n", writer.ToString());
+        Assert.AreEqual("int\r\nnil\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesNilLiteral()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> nil
+            corn.println(value)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("null\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -234,6 +250,24 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_EvaluatesStringReplaceMember()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var text -> "hello"
+            text -> text.replace(1, "a")
+            corn.println(text)
+            text -> text.replace(10, "z")
+            corn.println(text)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("hallo\r\nhallo\r\n", writer.ToString());
+    }
+
+    [TestMethod]
     public void ExecuteText_EvaluatesStringAtMember()
     {
         var writer = new StringWriter();
@@ -301,6 +335,24 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_EvaluatesObjectMemberAssignment()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var obj -> { name: "bob" }
+            obj.name -> 1
+            obj.age -> 32
+            corn.println(obj.get("name"))
+            corn.println(obj.get("age"))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("1\r\n32\r\n", writer.ToString());
+    }
+
+    [TestMethod]
     public void ExecuteText_EvaluatesObjectForEach()
     {
         var writer = new StringWriter();
@@ -352,6 +404,23 @@ public sealed class RuntimeTests
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("3\r\n20\r\n2\r\n30\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_EvaluatesArrayReplaceMember()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var arr -> [10, 20, 30]
+            corn.println(arr.replace(1, 99))
+            corn.println(arr.at(1))
+            corn.println(arr.replace(10, 0))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("20\r\n99\r\nnull\r\n", writer.ToString());
     }
 
     [TestMethod]

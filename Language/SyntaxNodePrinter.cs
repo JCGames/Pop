@@ -99,7 +99,7 @@ public static class SyntaxNodePrinter
             BinaryExpressionSyntax binary => [binary.Left, binary.Right],
             ConditionalExpressionSyntax conditional => [conditional.Condition, conditional.WhenTrue, conditional.WhenFalse],
             VariableDeclarationExpressionSyntax declaration => [new NameExpressionSyntax(declaration.IdentifierToken), declaration.Initializer],
-            AssignmentExpressionSyntax assignment => [new NameExpressionSyntax(assignment.IdentifierToken), assignment.Expression],
+            AssignmentExpressionSyntax assignment => [assignment.Target, assignment.Expression],
             _ => []
         };
     }

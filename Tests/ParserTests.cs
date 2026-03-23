@@ -108,8 +108,22 @@ public sealed class ParserTests
         Assert.IsInstanceOfType<AssignmentExpressionSyntax>(statement.Expression);
 
         var assignment = (AssignmentExpressionSyntax)statement.Expression;
-        Assert.AreEqual("value", assignment.IdentifierToken.Text);
+        Assert.IsInstanceOfType<NameExpressionSyntax>(assignment.Target);
         Assert.IsInstanceOfType<BinaryExpressionSyntax>(assignment.Expression);
+    }
+
+    [TestMethod]
+    public void ParseText_ParsesMemberAssignmentExpressions()
+    {
+        var result = Parser.ParseText("obj.name -> 1");
+
+        Assert.IsEmpty(result.Diagnostics);
+        var statement = (ExpressionStatementSyntax)result.Root.Statements[0];
+        Assert.IsInstanceOfType<AssignmentExpressionSyntax>(statement.Expression);
+
+        var assignment = (AssignmentExpressionSyntax)statement.Expression;
+        Assert.IsInstanceOfType<MemberAccessExpressionSyntax>(assignment.Target);
+        Assert.IsInstanceOfType<LiteralExpressionSyntax>(assignment.Expression);
     }
 
     [TestMethod]
@@ -127,6 +141,20 @@ public sealed class ParserTests
 
         var literal = (LiteralExpressionSyntax)declaration.Initializer;
         Assert.AreEqual(32.5d, literal.Value);
+    }
+
+    [TestMethod]
+    public void ParseText_ParsesNilLiteralExpression()
+    {
+        var result = Parser.ParseText("var a -> nil");
+
+        Assert.IsEmpty(result.Diagnostics);
+        var statement = (ExpressionStatementSyntax)result.Root.Statements[0];
+        var declaration = (VariableDeclarationExpressionSyntax)statement.Expression;
+        Assert.IsInstanceOfType<LiteralExpressionSyntax>(declaration.Initializer);
+
+        var literal = (LiteralExpressionSyntax)declaration.Initializer;
+        Assert.IsNull(literal.Value);
     }
 
     [TestMethod]
@@ -186,11 +214,11 @@ public sealed class ParserTests
         Assert.IsInstanceOfType<AssignmentExpressionSyntax>(statement.Expression);
 
         var outerAssignment = (AssignmentExpressionSyntax)statement.Expression;
-        Assert.AreEqual("a", outerAssignment.IdentifierToken.Text);
+        Assert.IsInstanceOfType<NameExpressionSyntax>(outerAssignment.Target);
         Assert.IsInstanceOfType<AssignmentExpressionSyntax>(outerAssignment.Expression);
 
         var innerAssignment = (AssignmentExpressionSyntax)outerAssignment.Expression;
-        Assert.AreEqual("b", innerAssignment.IdentifierToken.Text);
+        Assert.IsInstanceOfType<NameExpressionSyntax>(innerAssignment.Target);
         Assert.IsInstanceOfType<NameExpressionSyntax>(innerAssignment.Expression);
 
         var name = (NameExpressionSyntax)innerAssignment.Expression;

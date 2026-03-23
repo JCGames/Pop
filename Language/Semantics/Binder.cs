@@ -165,6 +165,7 @@ internal sealed class Binder
         var value = literal.Value;
         var type = value switch
         {
+            null => TypeSymbol.Nil,
             long => TypeSymbol.Int,
             double => TypeSymbol.Double,
             bool => TypeSymbol.Bool,
@@ -237,18 +238,48 @@ internal sealed class Binder
     {
         var boundExpression = BindExpression(assignment.Expression);
 
-        if (!_scope.TryLookupVariable(assignment.IdentifierToken.Text, out var variable))
+        if (assignment.Target is NameExpressionSyntax name)
         {
-            Report(assignment.IdentifierToken.Span, $"Undefined variable '{assignment.IdentifierToken.Text}'.");
-            return new BoundErrorExpression();
+            if (!_scope.TryLookupVariable(name.IdentifierToken.Text, out var variable))
+            {
+                Report(name.IdentifierToken.Span, $"Undefined variable '{name.IdentifierToken.Text}'.");
+                return new BoundErrorExpression();
+            }
+
+            if (!IsAssignable(variable.Type, boundExpression.Type))
+            {
+                Report(assignment.Expression.Span, $"Cannot assign a value of type '{boundExpression.Type.Name}' to '{variable.Type.Name}'.");
+            }
+
+            return new BoundAssignmentExpression(variable, boundExpression);
         }
 
-        if (!IsAssignable(variable.Type, boundExpression.Type))
+        if (assignment.Target is MemberAccessExpressionSyntax memberAccess)
         {
-            Report(assignment.Expression.Span, $"Cannot assign a value of type '{boundExpression.Type.Name}' to '{variable.Type.Name}'.");
+            var target = BindExpression(memberAccess.Target);
+            if (target.Type == TypeSymbol.Error)
+            {
+                return new BoundErrorExpression();
+            }
+
+            if (target.Type == TypeSymbol.Any)
+            {
+                return new BoundMemberAssignmentExpression(target, memberAccess.IdentifierToken.Text, boundExpression, TypeSymbol.Any);
+            }
+
+            if (target.Type is not ObjectTypeSymbol objectType)
+            {
+                Report(memberAccess.Target.Span, $"Type '{target.Type.Name}' does not support member assignment.");
+                return new BoundErrorExpression();
+            }
+
+            var resultType = boundExpression.Type;
+
+            return new BoundMemberAssignmentExpression(target, memberAccess.IdentifierToken.Text, boundExpression, resultType);
         }
 
-        return new BoundAssignmentExpression(variable, boundExpression);
+        Report(assignment.Target.Span, "Invalid assignment target.");
+        return new BoundErrorExpression();
     }
 
     private BoundExpression BindUnaryExpression(UnaryExpressionSyntax unary)
@@ -338,6 +369,7 @@ internal sealed class Binder
                 "len" => TypeSymbol.Int,
                 "at" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.Char),
                 "add" => new FunctionTypeSymbol([TypeSymbol.Any], TypeSymbol.String),
+                "replace" => new FunctionTypeSymbol([TypeSymbol.Int, TypeSymbol.Any], TypeSymbol.String),
                 "remove" => new FunctionTypeSymbol([TypeSymbol.Int], TypeSymbol.String),
                 "forEach" => new FunctionTypeSymbol(
                     [new FunctionTypeSymbol([TypeSymbol.Char], TypeSymbol.Void)],
@@ -358,6 +390,7 @@ internal sealed class Binder
                 "len" => TypeSymbol.Int,
                 "at" => new FunctionTypeSymbol([TypeSymbol.Int], arrayType.ElementType),
                 "add" => new FunctionTypeSymbol([arrayType.ElementType], TypeSymbol.Void),
+                "replace" => new FunctionTypeSymbol([TypeSymbol.Int, arrayType.ElementType], arrayType.ElementType),
                 "remove" => new FunctionTypeSymbol([TypeSymbol.Int], arrayType.ElementType),
                 "forEach" => new FunctionTypeSymbol(
                     [new FunctionTypeSymbol([arrayType.ElementType], TypeSymbol.Void)],
@@ -547,6 +580,13 @@ internal sealed class Binder
             return true;
         }
 
+        if (sourceType == TypeSymbol.Nil)
+        {
+            return targetType == TypeSymbol.Nil ||
+                   targetType == TypeSymbol.String ||
+                   targetType is ArrayTypeSymbol or ObjectTypeSymbol or FunctionTypeSymbol;
+        }
+
         if (targetType.Equals(sourceType))
         {
             return true;
@@ -598,6 +638,16 @@ internal sealed class Binder
         }
 
         if (left.Equals(right))
+        {
+            return left;
+        }
+
+        if (left == TypeSymbol.Nil)
+        {
+            return right;
+        }
+
+        if (right == TypeSymbol.Nil)
         {
             return left;
         }

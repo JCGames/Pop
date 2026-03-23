@@ -177,6 +177,25 @@ public sealed class SyntaxNodePrinterTests
     }
 
     [TestMethod]
+    public void WriteTo_PrintsMemberAssignmentTree()
+    {
+        var result = Parser.ParseText("obj.name -> 1");
+        var writer = new StringWriter();
+
+        SyntaxNodePrinter.WriteTo(writer, result.Root);
+
+        const string expected =
+            "└── CompilationUnit" + "\r\n" +
+            "    └── ExpressionStatement" + "\r\n" +
+            "        └── AssignmentExpression" + "\r\n" +
+            "            ├── MemberAccessExpression name" + "\r\n" +
+            "            │   └── NameExpression obj" + "\r\n" +
+            "            └── LiteralExpression 1" + "\r\n";
+
+        Assert.AreEqual(expected, writer.ToString());
+    }
+
+    [TestMethod]
     public void WriteTo_PrintsWhileStatementTree()
     {
         var result = Parser.ParseText("while flag { var value -> 1 }");

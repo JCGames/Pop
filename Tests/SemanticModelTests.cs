@@ -18,6 +18,16 @@ public sealed class SemanticModelTests
     }
 
     [TestMethod]
+    public void CreateText_InfersNilVariableType()
+    {
+        var model = SemanticModel.CreateText("var value -> nil");
+
+        Assert.IsEmpty(model.Diagnostics);
+        var variable = model.GlobalVariables.Single(variable => variable.Name == "value");
+        Assert.AreEqual(TypeSymbol.Nil, variable.Type);
+    }
+
+    [TestMethod]
     public void CreateText_BindsCornBuiltInModule()
     {
         var model = SemanticModel.CreateText("corn.print");
@@ -71,6 +81,22 @@ public sealed class SemanticModelTests
 
         Assert.IsNotEmpty(model.Diagnostics);
         Assert.IsTrue(model.Diagnostics.Any(diagnostic => diagnostic.Message.Contains("Cannot assign a value of type 'bool' to 'int'.")));
+    }
+
+    [TestMethod]
+    public void CreateText_AllowsMemberAssignmentOnObjects()
+    {
+        var model = SemanticModel.CreateText("var obj -> { name: \"bob\" }\nobj.name -> 1");
+
+        Assert.IsEmpty(model.Diagnostics);
+    }
+
+    [TestMethod]
+    public void CreateText_AllowsAssigningNilToString()
+    {
+        var model = SemanticModel.CreateText("var value -> \"hello\"\nvalue -> nil");
+
+        Assert.IsEmpty(model.Diagnostics);
     }
 
     [TestMethod]
@@ -160,7 +186,7 @@ public sealed class SemanticModelTests
     [TestMethod]
     public void CreateText_BindsStringMutationMembers()
     {
-        var model = SemanticModel.CreateText("var text -> \"hello\"\ntext.add\ntext.remove");
+        var model = SemanticModel.CreateText("var text -> \"hello\"\ntext.add\ntext.replace\ntext.remove");
 
         Assert.IsEmpty(model.Diagnostics);
 
@@ -171,7 +197,15 @@ public sealed class SemanticModelTests
         var addType = (FunctionTypeSymbol)addAccess.Type;
         Assert.AreEqual(TypeSymbol.String, addType.ReturnType);
 
-        var removeStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var replaceStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var replaceAccess = (BoundMemberAccessExpression)replaceStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(replaceAccess.Type);
+
+        var replaceType = (FunctionTypeSymbol)replaceAccess.Type;
+        Assert.AreEqual(TypeSymbol.Int, replaceType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.String, replaceType.ReturnType);
+
+        var removeStatement = (BoundExpressionStatement)model.Root.Statements[3];
         var removeAccess = (BoundMemberAccessExpression)removeStatement.Expression;
         Assert.IsInstanceOfType<FunctionTypeSymbol>(removeAccess.Type);
 
@@ -273,7 +307,7 @@ public sealed class SemanticModelTests
     [TestMethod]
     public void CreateText_BindsArrayMutationMembers()
     {
-        var model = SemanticModel.CreateText("var arr -> [1, 2, 3]\narr.add\narr.remove");
+        var model = SemanticModel.CreateText("var arr -> [1, 2, 3]\narr.add\narr.replace\narr.remove");
 
         Assert.IsEmpty(model.Diagnostics);
 
@@ -285,7 +319,15 @@ public sealed class SemanticModelTests
         Assert.AreEqual(TypeSymbol.Int, addType.ParameterTypes[0]);
         Assert.AreEqual(TypeSymbol.Void, addType.ReturnType);
 
-        var removeStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var replaceStatement = (BoundExpressionStatement)model.Root.Statements[2];
+        var replaceAccess = (BoundMemberAccessExpression)replaceStatement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(replaceAccess.Type);
+
+        var replaceType = (FunctionTypeSymbol)replaceAccess.Type;
+        Assert.AreEqual(TypeSymbol.Int, replaceType.ParameterTypes[0]);
+        Assert.AreEqual(TypeSymbol.Int, replaceType.ReturnType);
+
+        var removeStatement = (BoundExpressionStatement)model.Root.Statements[3];
         var removeAccess = (BoundMemberAccessExpression)removeStatement.Expression;
         Assert.IsInstanceOfType<FunctionTypeSymbol>(removeAccess.Type);
 

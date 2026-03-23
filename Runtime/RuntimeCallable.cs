@@ -76,6 +76,22 @@ internal sealed class ArrayAddCallable(List<object?> array) : IRuntimeCallable
     }
 }
 
+internal sealed class ArrayReplaceCallable(List<object?> array) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        var index = Convert.ToInt32(arguments[0]);
+        if (index < 0 || index >= array.Count)
+        {
+            return null;
+        }
+
+        var previous = array[index];
+        array[index] = arguments[1];
+        return previous;
+    }
+}
+
 internal sealed class ArrayRemoveCallable(List<object?> array) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
@@ -133,6 +149,20 @@ internal sealed class StringAddCallable(string text) : IRuntimeCallable
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
         return text + RuntimeValueFormatter.Format(arguments[0]);
+    }
+}
+
+internal sealed class StringReplaceCallable(string text) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        var index = Convert.ToInt32(arguments[0]);
+        if (index < 0 || index >= text.Length)
+        {
+            return text;
+        }
+
+        return text.Remove(index, 1).Insert(index, RuntimeValueFormatter.Format(arguments[1]));
     }
 }
 

@@ -121,6 +121,7 @@ internal sealed class EvaluationContext
             BoundNameExpression name => EvaluateNameExpression(name, environment),
             BoundVariableDeclarationExpression declaration => EvaluateVariableDeclarationExpression(declaration, environment, sourceFile),
             BoundAssignmentExpression assignment => EvaluateAssignmentExpression(assignment, environment, sourceFile),
+            BoundMemberAssignmentExpression memberAssignment => EvaluateMemberAssignmentExpression(memberAssignment, environment, sourceFile),
             BoundUnaryExpression unary => EvaluateUnaryExpression(unary, environment, sourceFile),
             BoundBinaryExpression binary => EvaluateBinaryExpression(binary, environment, sourceFile),
             BoundConditionalExpression conditional => EvaluateConditionalExpression(conditional, environment, sourceFile),
@@ -257,6 +258,19 @@ internal sealed class EvaluationContext
         return value;
     }
 
+    private object? EvaluateMemberAssignmentExpression(BoundMemberAssignmentExpression assignment, RuntimeEnvironment environment, SourceFile sourceFile)
+    {
+        var target = EvaluateExpression(assignment.Target, environment, sourceFile);
+        if (target is not IDictionary<string, object?> properties)
+        {
+            throw new InvalidOperationException("Member assignment target is not an object.");
+        }
+
+        var value = EvaluateExpression(assignment.Expression, environment, sourceFile);
+        properties[assignment.MemberName] = value;
+        return value;
+    }
+
     private object? EvaluateUnaryExpression(BoundUnaryExpression unary, RuntimeEnvironment environment, SourceFile sourceFile)
     {
         var operand = EvaluateExpression(unary.Operand, environment, sourceFile);
@@ -329,6 +343,7 @@ internal sealed class EvaluationContext
                 "len" => (long)text.Length,
                 "at" => new StringAtCallable(text),
                 "add" => new StringAddCallable(text),
+                "replace" => new StringReplaceCallable(text),
                 "remove" => new StringRemoveCallable(text),
                 "forEach" => new StringForEachCallable(text),
                 _ => throw new InvalidOperationException($"String does not contain member '{memberAccess.MemberName}'.")
@@ -342,6 +357,7 @@ internal sealed class EvaluationContext
                 "len" => (long)array.Count,
                 "at" => new ArrayAtCallable(array),
                 "add" => new ArrayAddCallable(array),
+                "replace" => new ArrayReplaceCallable(array),
                 "remove" => new ArrayRemoveCallable(array),
                 "forEach" => new ArrayForEachCallable(array),
                 _ => throw new InvalidOperationException($"Array does not contain member '{memberAccess.MemberName}'.")
@@ -481,7 +497,7 @@ internal sealed class EvaluationContext
     {
         return value switch
         {
-            null => "null",
+            null => "nil",
             long => "int",
             double => "double",
             bool => "bool",

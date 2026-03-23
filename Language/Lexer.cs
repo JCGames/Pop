@@ -115,6 +115,7 @@ internal sealed class Lexer
             "else" => new SyntaxToken(SyntaxKind.ElseKeyword, new TextSpan(start, text.Length), text),
             "true" => new SyntaxToken(SyntaxKind.TrueKeyword, new TextSpan(start, text.Length), text, true),
             "false" => new SyntaxToken(SyntaxKind.FalseKeyword, new TextSpan(start, text.Length), text, false),
+            "nil" => new SyntaxToken(SyntaxKind.NilKeyword, new TextSpan(start, text.Length), text, null),
             _ => new SyntaxToken(SyntaxKind.IdentifierToken, new TextSpan(start, text.Length), text)
         };
     }

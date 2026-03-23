@@ -12,6 +12,7 @@ public abstract class TypeSymbol
     public static PrimitiveTypeSymbol Error { get; } = new("error");
     public static PrimitiveTypeSymbol Void { get; } = new("void");
     public static PrimitiveTypeSymbol Any { get; } = new("any");
+    public static PrimitiveTypeSymbol Nil { get; } = new("nil");
     public static PrimitiveTypeSymbol Int { get; } = new("int");
     public static PrimitiveTypeSymbol Double { get; } = new("double");
     public static PrimitiveTypeSymbol Bool { get; } = new("bool");

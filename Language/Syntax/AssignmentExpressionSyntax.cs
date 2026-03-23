@@ -2,20 +2,20 @@ namespace Pop.Language;
 
 public sealed class AssignmentExpressionSyntax : ExpressionSyntax
 {
-    public SyntaxToken IdentifierToken { get; }
+    public ExpressionSyntax Target { get; }
     public SyntaxToken ArrowToken { get; }
     public ExpressionSyntax Expression { get; }
 
     public AssignmentExpressionSyntax(
-        SyntaxToken identifierToken,
+        ExpressionSyntax target,
         SyntaxToken arrowToken,
         ExpressionSyntax expression)
     {
-        IdentifierToken = identifierToken;
+        Target = target;
         ArrowToken = arrowToken;
         Expression = expression;
     }
 
     public override SyntaxKind Kind => SyntaxKind.AssignmentExpression;
-    public override TextSpan Span => TextSpan.FromBounds(IdentifierToken.Span.Start, Expression.Span.End);
+    public override TextSpan Span => TextSpan.FromBounds(Target.Span.Start, Expression.Span.End);
 }

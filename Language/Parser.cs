@@ -197,15 +197,15 @@ public sealed class Parser
             return new VariableDeclarationExpressionSyntax(null, varKeyword, identifierToken, arrowToken, initializer);
         }
 
-        if (Current.Kind == SyntaxKind.IdentifierToken && Peek(1).Kind == SyntaxKind.ArrowToken)
+        var target = ParseConditionalExpression();
+        if (Current.Kind == SyntaxKind.ArrowToken)
         {
-            var identifierToken = NextToken();
             var arrowToken = NextToken();
             var expression = ParseAssignmentExpression();
-            return new AssignmentExpressionSyntax(identifierToken, arrowToken, expression);
+            return new AssignmentExpressionSyntax(target, arrowToken, expression);
         }
 
-        return ParseConditionalExpression();
+        return target;
     }
 
     private ExpressionSyntax ParseConditionalExpression()
@@ -321,6 +321,7 @@ public sealed class Parser
             }
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
+            case SyntaxKind.NilKeyword:
             case SyntaxKind.IntegerLiteralToken:
             case SyntaxKind.FloatLiteralToken:
             case SyntaxKind.CharacterLiteralToken:
@@ -531,6 +532,7 @@ public sealed class Parser
             SyntaxKind.CaretToken => "'^'",
             SyntaxKind.TrueKeyword => "'true'",
             SyntaxKind.FalseKeyword => "'false'",
+            SyntaxKind.NilKeyword => "'nil'",
             _ => kind.ToString()
         };
     }
@@ -545,6 +547,7 @@ public sealed class Parser
             SyntaxKind.StringLiteralToken => string.Empty,
             SyntaxKind.TrueKeyword => true,
             SyntaxKind.FalseKeyword => false,
+            SyntaxKind.NilKeyword => null,
             _ => null
         };
     }
