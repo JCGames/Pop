@@ -72,6 +72,20 @@ fun hidden() {
 
 `hidden` is not visible to the importing file.
 
+## Comments
+
+| Comment kind | Syntax | Notes |
+| --- | --- | --- |
+| Single-line comment | `// text` | Runs to the end of the current line |
+
+Example:
+
+```text
+// initialize a value
+var count -> 1
+count -> count + 1 // increment it
+```
+
 ## Statements
 
 | Statement | Syntax | Notes |

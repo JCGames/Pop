@@ -21,7 +21,7 @@ internal sealed class Lexer
 
         while (true)
         {
-            SkipWhitespace();
+            SkipTrivia();
 
             var token = LexToken();
             if (token.Kind != SyntaxKind.BadToken)
@@ -308,11 +308,27 @@ internal sealed class Lexer
         return _sourceFile.Peek(_position + offset);
     }
 
-    private void SkipWhitespace()
+    private void SkipTrivia()
     {
-        while (char.IsWhiteSpace(_sourceFile[_position]))
+        while (true)
         {
-            _position++;
+            while (char.IsWhiteSpace(_sourceFile[_position]))
+            {
+                _position++;
+            }
+
+            if (_sourceFile[_position] == '/' && Peek(1) == '/')
+            {
+                _position += 2;
+                while (_sourceFile[_position] is not '\0' and not '\r' and not '\n')
+                {
+                    _position++;
+                }
+
+                continue;
+            }
+
+            break;
         }
     }
 

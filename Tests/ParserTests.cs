@@ -378,6 +378,36 @@ public sealed class ParserTests
     }
 
     [TestMethod]
+    public void ParseText_IgnoresSingleLineComments()
+    {
+        var result = Parser.ParseText("""
+            // comment before code
+            var value -> 1
+            // comment after declaration
+            value -> value + 1
+            """);
+
+        Assert.IsEmpty(result.Diagnostics);
+        Assert.HasCount(2, result.Root.Statements);
+        Assert.IsInstanceOfType<ExpressionStatementSyntax>(result.Root.Statements[0]);
+        Assert.IsInstanceOfType<ExpressionStatementSyntax>(result.Root.Statements[1]);
+    }
+
+    [TestMethod]
+    public void ParseText_IgnoresTrailingSingleLineComments()
+    {
+        var result = Parser.ParseText("""
+            var value -> 1 // initialize value
+            value -> value + 1 // increment value
+            """);
+
+        Assert.IsEmpty(result.Diagnostics);
+        Assert.HasCount(2, result.Root.Statements);
+        Assert.IsInstanceOfType<ExpressionStatementSyntax>(result.Root.Statements[0]);
+        Assert.IsInstanceOfType<ExpressionStatementSyntax>(result.Root.Statements[1]);
+    }
+
+    [TestMethod]
     public void ParseText_ReportsDiagnosticForMissingOperand()
     {
         var result = Parser.ParseText("1 +");
