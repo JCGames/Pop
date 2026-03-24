@@ -6,18 +6,94 @@ public fun write(path, text) {
     ret corn.fs.write(path, text)
 }
 
+public fun append(path, text) {
+    ret corn.fs.append(path, text)
+}
+
+public fun copy(source, destination) {
+    ret corn.fs.copy(source, destination)
+}
+
+public fun move(source, destination) {
+    ret corn.fs.move(source, destination)
+}
+
+public fun remove(path) {
+    ret corn.fs.remove(path)
+}
+
 public fun exists(path) {
     ret corn.fs.exists(path)
+}
+
+public fun isFile(path) {
+    ret corn.fs.isFile(path)
+}
+
+public fun isDir(path) {
+    ret corn.fs.isDir(path)
 }
 
 public fun info(path) {
     ret corn.fs.info(path)
 }
 
+public fun size(path) {
+    ret corn.fs.size(path)
+}
+
+public fun modified(path) {
+    ret corn.fs.modified(path)
+}
+
+public fun created(path) {
+    ret corn.fs.created(path)
+}
+
 public fun list(path) {
     ret corn.fs.list(path)
 }
 
+public fun files(path) {
+    ret corn.fs.files(path)
+}
+
+public fun dirs(path) {
+    ret corn.fs.dirs(path)
+}
+
+public fun mkdir(path) {
+    ret corn.fs.mkdir(path)
+}
+
 public fun cwd() {
     ret corn.fs.cwd()
+}
+
+public fun chdir(path) {
+    ret corn.fs.chdir(path)
+}
+
+public fun join(left, right) {
+    ret corn.fs.join(left, right)
+}
+
+public fun name(path) {
+    ret corn.fs.name(path)
+}
+
+public fun stem(path) {
+    ret corn.fs.stem(path)
+}
+
+public fun ext(path) {
+    ret corn.fs.ext(path)
+}
+
+public fun parent(path) {
+    ret corn.fs.parent(path)
+}
+
+public fun absolute(path) {
+    ret corn.fs.absolute(path)
 }

@@ -228,6 +228,8 @@ condition ? whenTrue : whenFalse
 obj.name
 corn.fs.cwd()
 corn.math.sqrt(9)
+corn.json.parse("{\"name\":\"pop\"}")
+corn.http.get("http://example.com")
 ```
 
 ## Built-In Value APIs
@@ -356,14 +358,47 @@ General built-ins:
 
 ### `corn.fs`
 
-File and directory helpers:
+File, directory, and path helpers:
+
+Path helpers:
+
+- `corn.fs.join(left, right)`
+- `corn.fs.name(path)`
+- `corn.fs.stem(path)`
+- `corn.fs.ext(path)`
+- `corn.fs.parent(path)`
+- `corn.fs.absolute(path)`
+
+File and directory checks:
+
+- `corn.fs.exists(path)`
+- `corn.fs.isFile(path)`
+- `corn.fs.isDir(path)`
+
+Metadata:
+
+- `corn.fs.info(path)`
+- `corn.fs.size(path)`
+- `corn.fs.created(path)`
+- `corn.fs.modified(path)`
+
+File operations:
 
 - `corn.fs.read(path)`
 - `corn.fs.write(path, text)`
-- `corn.fs.exists(path)`
-- `corn.fs.info(path)`
+- `corn.fs.append(path, text)`
+- `corn.fs.copy(source, destination)`
+- `corn.fs.move(source, destination)`
+- `corn.fs.remove(path)`
+
+Directory operations:
+
 - `corn.fs.list(path)`
+- `corn.fs.files(path)`
+- `corn.fs.dirs(path)`
+- `corn.fs.mkdir(path)`
 - `corn.fs.cwd()`
+- `corn.fs.chdir(path)`
 
 `corn.fs.info(path)` returns an object with fields such as:
 
@@ -379,9 +414,14 @@ File and directory helpers:
 Example:
 
 ```text
-var info -> corn.fs.info("notes.txt")
+var path -> corn.fs.join("logs", "app.txt")
+corn.fs.write(path, "hello")
+corn.fs.append(path, "\nworld")
+
+var info -> corn.fs.info(path)
 if info.exists {
     corn.println(info.size)
+    corn.println(corn.fs.parent(path))
 }
 ```
 
@@ -424,6 +464,67 @@ Example:
 ```text
 var value -> corn.math.sqrt(-1)
 corn.println(corn.isError(value))
+```
+
+### `corn.json`
+
+JSON parsing and serialization helpers:
+
+- `corn.json.parse(text)`
+- `corn.json.stringify(value)`
+- `corn.json.pretty(value)`
+
+`corn.json.parse(text)` converts JSON into normal Pop values:
+
+- JSON objects become Pop objects
+- JSON arrays become Pop arrays
+- JSON strings become Pop strings
+- JSON numbers become `int` or `double`
+- JSON booleans become `bool`
+- JSON `null` becomes `nil`
+
+Invalid JSON returns an error object.
+
+Example:
+
+```text
+var value -> corn.json.parse("{\"name\":\"pop\",\"numbers\":[1,2,3]}")
+corn.println(value.name)
+corn.println(value.numbers.len)
+corn.println(corn.json.stringify(value))
+corn.println(corn.json.pretty(value))
+```
+
+### `corn.http`
+
+Synchronous HTTP helpers:
+
+- `corn.http.get(url)`
+- `corn.http.post(url, body)`
+- `corn.http.put(url, body)`
+- `corn.http.delete(url)`
+- `corn.http.request(method, url, body, headers)`
+
+Each request returns a Pop object with fields such as:
+
+- `ok`
+- `status`
+- `reason`
+- `body`
+- `headers`
+- `url`
+- `method`
+
+Request failures return an error object.
+
+Example:
+
+```text
+var response -> corn.http.get("http://127.0.0.1:8080/")
+if response.ok {
+    corn.println(response.status)
+    corn.println(response.body)
+}
 ```
 
 ## Shipped Library Modules
@@ -482,16 +583,36 @@ Exports:
 
 - `read(path)`
 - `write(path, text)`
+- `append(path, text)`
+- `copy(source, destination)`
+- `move(source, destination)`
+- `remove(path)`
 - `exists(path)`
+- `isFile(path)`
+- `isDir(path)`
 - `info(path)`
+- `size(path)`
+- `created(path)`
+- `modified(path)`
 - `list(path)`
+- `files(path)`
+- `dirs(path)`
+- `mkdir(path)`
 - `cwd()`
+- `chdir(path)`
+- `join(left, right)`
+- `name(path)`
+- `stem(path)`
+- `ext(path)`
+- `parent(path)`
+- `absolute(path)`
 
 Example:
 
 ```text
 var fs -> inject "lib/fs.pop"
-corn.println(fs.cwd())
+var path -> fs.join("notes", "todo.txt")
+corn.println(fs.absolute(path))
 ```
 
 ## Example Script

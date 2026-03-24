@@ -1,0 +1,23 @@
+public fun make(code, message) {
+    ret corn.error(code, message)
+}
+
+public fun is(value) {
+    ret corn.isError(value)
+}
+
+public fun code(value) {
+    if corn.isError(value) {
+        ret value.code
+    }
+
+    ret nil
+}
+
+public fun message(value) {
+    if corn.isError(value) {
+        ret value.message
+    }
+
+    ret nil
+}

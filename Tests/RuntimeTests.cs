@@ -1,4 +1,6 @@
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using Pop.Language;
 using Pop.Runtime;
 
@@ -686,6 +688,106 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_UsesCornFsPathHelpers()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            corn.println(corn.fs.join("root", "file.txt"))
+            corn.println(corn.fs.name("folder\\data.txt"))
+            corn.println(corn.fs.stem("folder\\data.txt"))
+            corn.println(corn.fs.ext("folder\\data.txt"))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual($"{Path.Combine("root", "file.txt")}\r\ndata.txt\r\ndata\r\n.txt\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_UsesCornFsMetadataHelpers()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        var filePath = Path.Combine(directory.FullName, "data.txt");
+        File.WriteAllText(filePath, "hello");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            corn.println(corn.fs.isFile("{{filePath.Replace("\\", "\\\\")}}"))
+            corn.println(corn.fs.isDir("{{directory.FullName.Replace("\\", "\\\\")}}"))
+            corn.println(corn.fs.size("{{filePath.Replace("\\", "\\\\")}}"))
+            corn.println(corn.bool(corn.fs.created("{{filePath.Replace("\\", "\\\\")}}")))
+            corn.println(corn.bool(corn.fs.modified("{{filePath.Replace("\\", "\\\\")}}")))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\ntrue\r\n5\r\ntrue\r\ntrue\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_UsesCornFsFileOperations()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        var sourcePath = Path.Combine(directory.FullName, "source.txt");
+        var copyPath = Path.Combine(directory.FullName, "copy.txt");
+        var movedPath = Path.Combine(directory.FullName, "moved.txt");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            corn.fs.write("{{sourcePath.Replace("\\", "\\\\")}}", "hello")
+            corn.fs.append("{{sourcePath.Replace("\\", "\\\\")}}", " world")
+            corn.fs.copy("{{sourcePath.Replace("\\", "\\\\")}}", "{{copyPath.Replace("\\", "\\\\")}}")
+            corn.fs.move("{{copyPath.Replace("\\", "\\\\")}}", "{{movedPath.Replace("\\", "\\\\")}}")
+            corn.println(corn.fs.read("{{sourcePath.Replace("\\", "\\\\")}}"))
+            corn.println(corn.fs.exists("{{movedPath.Replace("\\", "\\\\")}}"))
+            corn.fs.remove("{{movedPath.Replace("\\", "\\\\")}}")
+            corn.println(corn.fs.exists("{{movedPath.Replace("\\", "\\\\")}}"))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("hello world\r\ntrue\r\nfalse\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_UsesCornFsDirectoryOperations()
+    {
+        var originalDirectory = Directory.GetCurrentDirectory();
+        var directory = Directory.CreateTempSubdirectory();
+        var nestedDirectory = Path.Combine(directory.FullName, "nested");
+        var childDirectory = Path.Combine(nestedDirectory, "child");
+        File.WriteAllText(Path.Combine(directory.FullName, "a.txt"), "a");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        try
+        {
+            var result = runtime.ExecuteText($$"""
+                corn.fs.mkdir("{{nestedDirectory.Replace("\\", "\\\\")}}")
+                corn.fs.mkdir("{{childDirectory.Replace("\\", "\\\\")}}")
+                corn.println(corn.fs.list("{{directory.FullName.Replace("\\", "\\\\")}}").len)
+                corn.println(corn.fs.files("{{directory.FullName.Replace("\\", "\\\\")}}").len)
+                corn.println(corn.fs.dirs("{{directory.FullName.Replace("\\", "\\\\")}}").len)
+                corn.println(corn.fs.parent("{{childDirectory.Replace("\\", "\\\\")}}"))
+                corn.println(corn.fs.absolute("{{nestedDirectory.Replace("\\", "\\\\")}}"))
+                corn.fs.chdir("{{nestedDirectory.Replace("\\", "\\\\")}}")
+                corn.println(corn.fs.cwd())
+                """);
+
+            Assert.IsTrue(result.Succeeded);
+            Assert.AreEqual($"2\r\n1\r\n1\r\n{nestedDirectory}\r\n{nestedDirectory}\r\n{nestedDirectory}\r\n", writer.ToString());
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalDirectory);
+        }
+    }
+
+    [TestMethod]
     public void Execute_LoadsCoreMathLibraryModule()
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
@@ -751,13 +853,14 @@ public sealed class RuntimeTests
 
         var result = runtime.ExecuteText($$"""
             var fs -> inject "{{fsPath.Replace("\\", "\\\\")}}"
+            corn.println(fs.join("lib", "data.txt"))
             corn.println(fs.exists("{{filePath.Replace("\\", "\\\\")}}"))
             var info -> fs.info("{{filePath.Replace("\\", "\\\\")}}")
             corn.println(info.isFile)
             """);
 
         Assert.IsTrue(result.Succeeded);
-        Assert.AreEqual("true\r\ntrue\r\n", writer.ToString());
+        Assert.AreEqual($"{Path.Combine("lib", "data.txt")}\r\ntrue\r\ntrue\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -780,6 +883,148 @@ public sealed class RuntimeTests
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual($"{Math.PI}\r\n{Math.Tau}\r\n{Math.E}\r\n4\r\n16\r\n0\r\n1\r\n0\r\n2\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_UsesCornJsonBuiltIns()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> corn.json.parse("{\"name\":\"pop\",\"nums\":[1,2.5],\"active\":true,\"empty\":null}")
+            corn.println(value.name)
+            corn.println(value.nums.len)
+            corn.println(value.nums.at(1))
+            corn.println(value.active)
+            corn.println(corn.type(value.empty))
+            corn.println(corn.json.stringify(value))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("pop\r\n2\r\n2.5\r\ntrue\r\nnil\r\n{\"name\":\"pop\",\"nums\":[1,2.5],\"active\":true,\"empty\":null}\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_PrettyPrintsJson()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> { name: "pop" nums: [1, 2] }
+            corn.println(corn.json.pretty(value))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("{\r\n  \"name\": \"pop\",\r\n  \"nums\": [\r\n    1,\r\n    2\r\n  ]\r\n}\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_ReturnsErrorObjectForInvalidJsonParse()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> corn.json.parse("{")
+            corn.println(corn.isError(value))
+            corn.println(value.code)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\njson_parse_failed\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public async Task ExecuteText_UsesCornHttpGet()
+    {
+        var port = GetFreePort();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        var serverTask = Task.Run(async () =>
+        {
+            var context = await listener.GetContextAsync();
+            context.Response.StatusCode = 200;
+            context.Response.ContentType = "text/plain";
+            context.Response.Headers["X-Test"] = "ok";
+            await using var writer = new StreamWriter(context.Response.OutputStream, System.Text.Encoding.UTF8, 1024, leaveOpen: true);
+            await writer.WriteAsync("hello from server");
+            await writer.FlushAsync();
+            context.Response.Close();
+        });
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        try
+        {
+            var result = runtime.ExecuteText($$"""
+                var response -> corn.http.get("http://127.0.0.1:{{port}}/")
+                corn.println(response.ok)
+                corn.println(response.status)
+                corn.println(response.body)
+                corn.println(response.headers.get("content-type"))
+                corn.println(response.headers.get("x-test"))
+                """);
+
+            Assert.IsTrue(result.Succeeded);
+            Assert.AreEqual("true\r\n200\r\nhello from server\r\ntext/plain\r\nok\r\n", writer.ToString());
+            await serverTask;
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [TestMethod]
+    public async Task ExecuteText_UsesCornHttpRequest()
+    {
+        var port = GetFreePort();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        var serverTask = Task.Run(async () =>
+        {
+            var context = await listener.GetContextAsync();
+            using var reader = new StreamReader(context.Request.InputStream);
+            var body = await reader.ReadToEndAsync();
+
+            context.Response.StatusCode = 201;
+            context.Response.ContentType = "text/plain";
+            await using var writer = new StreamWriter(context.Response.OutputStream, System.Text.Encoding.UTF8, 1024, leaveOpen: true);
+            await writer.WriteAsync($"{context.Request.HttpMethod}|{body}|{context.Request.Headers["X-Test"]}|{context.Request.ContentType}");
+            await writer.FlushAsync();
+            context.Response.Close();
+        });
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        try
+        {
+            var result = runtime.ExecuteText($$"""
+                var headers -> {}
+                headers.add("x-test", "Pop")
+                headers.add("content-type", "text/plain")
+                var response -> corn.http.request("POST", "http://127.0.0.1:{{port}}/", "hello", headers)
+                corn.println(response.status)
+                corn.println(response.method)
+                corn.println(response.body)
+                """);
+
+            Assert.IsTrue(result.Succeeded);
+            Assert.AreEqual("201\r\nPOST\r\nPOST|hello|Pop|text/plain\r\n", writer.ToString());
+            await serverTask;
+        }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     [TestMethod]
@@ -837,5 +1082,14 @@ public sealed class RuntimeTests
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("2\r\n", writer.ToString());
+    }
+
+    private static int GetFreePort()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 }

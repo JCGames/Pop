@@ -47,12 +47,41 @@ public static class BuiltInSymbols
     public static FunctionSymbol MathRound { get; } = Create("round", [Parameter("value")], TypeSymbol.Any);
     public static FunctionSymbol MathTrunc { get; } = Create("trunc", [Parameter("value")], TypeSymbol.Any);
 
+    public static FunctionSymbol JsonParse { get; } = Create("parse", [Parameter("text")], TypeSymbol.Any);
+    public static FunctionSymbol JsonStringify { get; } = Create("stringify", [Parameter("value")], TypeSymbol.Any);
+    public static FunctionSymbol JsonPretty { get; } = Create("pretty", [Parameter("value")], TypeSymbol.Any);
+
+    public static FunctionSymbol HttpGet { get; } = Create("get", [Parameter("url")], TypeSymbol.Any);
+    public static FunctionSymbol HttpPost { get; } = Create("post", [Parameter("url"), Parameter("body")], TypeSymbol.Any);
+    public static FunctionSymbol HttpPut { get; } = Create("put", [Parameter("url"), Parameter("body")], TypeSymbol.Any);
+    public static FunctionSymbol HttpDelete { get; } = Create("delete", [Parameter("url")], TypeSymbol.Any);
+    public static FunctionSymbol HttpRequest { get; } = Create("request", [Parameter("method"), Parameter("url"), Parameter("body"), Parameter("headers")], TypeSymbol.Any);
+
     public static FunctionSymbol FsRead { get; } = Create("read", [Parameter("path")], TypeSymbol.Any);
     public static FunctionSymbol FsWrite { get; } = Create("write", [Parameter("path"), Parameter("text")], TypeSymbol.Any);
+    public static FunctionSymbol FsAppend { get; } = Create("append", [Parameter("path"), Parameter("text")], TypeSymbol.Any);
+    public static FunctionSymbol FsCopy { get; } = Create("copy", [Parameter("source"), Parameter("destination")], TypeSymbol.Any);
+    public static FunctionSymbol FsMove { get; } = Create("move", [Parameter("source"), Parameter("destination")], TypeSymbol.Any);
+    public static FunctionSymbol FsRemove { get; } = Create("remove", [Parameter("path")], TypeSymbol.Any);
     public static FunctionSymbol FsExists { get; } = Create("exists", [Parameter("path")], TypeSymbol.Bool);
+    public static FunctionSymbol FsIsFile { get; } = Create("isFile", [Parameter("path")], TypeSymbol.Bool);
+    public static FunctionSymbol FsIsDir { get; } = Create("isDir", [Parameter("path")], TypeSymbol.Bool);
     public static FunctionSymbol FsInfo { get; } = Create("info", [Parameter("path")], TypeSymbol.Any);
+    public static FunctionSymbol FsSize { get; } = Create("size", [Parameter("path")], TypeSymbol.Any);
+    public static FunctionSymbol FsModified { get; } = Create("modified", [Parameter("path")], TypeSymbol.Any);
+    public static FunctionSymbol FsCreated { get; } = Create("created", [Parameter("path")], TypeSymbol.Any);
     public static FunctionSymbol FsList { get; } = Create("list", [Parameter("path")], TypeSymbol.Any);
+    public static FunctionSymbol FsFiles { get; } = Create("files", [Parameter("path")], TypeSymbol.Any);
+    public static FunctionSymbol FsDirs { get; } = Create("dirs", [Parameter("path")], TypeSymbol.Any);
+    public static FunctionSymbol FsMkdir { get; } = Create("mkdir", [Parameter("path")], TypeSymbol.Any);
     public static FunctionSymbol FsCwd { get; } = Create("cwd", [], TypeSymbol.String);
+    public static FunctionSymbol FsChdir { get; } = Create("chdir", [Parameter("path")], TypeSymbol.Any);
+    public static FunctionSymbol FsJoin { get; } = Create("join", [Parameter("left"), Parameter("right")], TypeSymbol.String);
+    public static FunctionSymbol FsName { get; } = Create("name", [Parameter("path")], TypeSymbol.String);
+    public static FunctionSymbol FsStem { get; } = Create("stem", [Parameter("path")], TypeSymbol.String);
+    public static FunctionSymbol FsExt { get; } = Create("ext", [Parameter("path")], TypeSymbol.String);
+    public static FunctionSymbol FsParent { get; } = Create("parent", [Parameter("path")], TypeSymbol.String);
+    public static FunctionSymbol FsAbsolute { get; } = Create("absolute", [Parameter("path")], TypeSymbol.String);
 
     public static IReadOnlyList<FunctionSymbol> RootFunctions { get; } =
     [
@@ -75,10 +104,29 @@ public static class BuiltInSymbols
     [
         FsRead,
         FsWrite,
+        FsAppend,
+        FsCopy,
+        FsMove,
+        FsRemove,
         FsExists,
+        FsIsFile,
+        FsIsDir,
         FsInfo,
+        FsSize,
+        FsModified,
+        FsCreated,
         FsList,
-        FsCwd
+        FsFiles,
+        FsDirs,
+        FsMkdir,
+        FsCwd,
+        FsChdir,
+        FsJoin,
+        FsName,
+        FsStem,
+        FsExt,
+        FsParent,
+        FsAbsolute
     ];
 
     public static IReadOnlyList<FunctionSymbol> MathFunctions { get; } =
@@ -104,6 +152,22 @@ public static class BuiltInSymbols
         MathCeil,
         MathRound,
         MathTrunc
+    ];
+
+    public static IReadOnlyList<FunctionSymbol> JsonFunctions { get; } =
+    [
+        JsonParse,
+        JsonStringify,
+        JsonPretty
+    ];
+
+    public static IReadOnlyList<FunctionSymbol> HttpFunctions { get; } =
+    [
+        HttpGet,
+        HttpPost,
+        HttpPut,
+        HttpDelete,
+        HttpRequest
     ];
 
     private static FunctionSymbol Create(string name, IReadOnlyList<VariableSymbol> parameters, TypeSymbol returnType)

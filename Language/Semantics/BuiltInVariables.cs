@@ -11,6 +11,18 @@ public static class BuiltInVariables
     private static readonly ObjectTypeSymbol CornMathType = new(
         BuildMathProperties());
 
+    private static readonly ObjectTypeSymbol CornJsonType = new(
+        BuiltInSymbols.JsonFunctions.ToDictionary(
+            static function => function.Name,
+            static function => (TypeSymbol)function.Type,
+            StringComparer.Ordinal));
+
+    private static readonly ObjectTypeSymbol CornHttpType = new(
+        BuiltInSymbols.HttpFunctions.ToDictionary(
+            static function => function.Name,
+            static function => (TypeSymbol)function.Type,
+            StringComparer.Ordinal));
+
     private static readonly ObjectTypeSymbol CornType = new(
         BuildCornProperties());
 
@@ -29,6 +41,8 @@ public static class BuiltInVariables
             StringComparer.Ordinal);
         properties["fs"] = CornFsType;
         properties["math"] = CornMathType;
+        properties["json"] = CornJsonType;
+        properties["http"] = CornHttpType;
         return properties;
     }
 

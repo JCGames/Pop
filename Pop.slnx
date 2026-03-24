@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/_solution-items/">
     <File Path=".gitignore" />
+    <File Path="BUILTIN.md" />
     <File Path="Directory.build.props" />
     <File Path="README.md" />
   </Folder>

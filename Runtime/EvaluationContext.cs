@@ -1,9 +1,13 @@
 using Pop.Language;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 namespace Pop.Runtime;
 
 internal sealed class EvaluationContext
 {
+    private static readonly HttpClient HttpClient = new();
     private readonly TextWriter _output;
     private readonly TextReader _input;
 
@@ -182,6 +186,8 @@ internal sealed class EvaluationContext
         var corn = new Dictionary<string, object?>(StringComparer.Ordinal);
         var fs = new Dictionary<string, object?>(StringComparer.Ordinal);
         var math = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var json = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var http = new Dictionary<string, object?>(StringComparer.Ordinal);
 
         RegisterBuiltIn(corn, BuiltInSymbols.Print, new BuiltInCallable((_, arguments) =>
         {
@@ -236,10 +242,53 @@ internal sealed class EvaluationContext
             return null;
         }), errorCode: "file_write_failed");
 
+        RegisterBuiltIn(fs, BuiltInSymbols.FsAppend, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            var text = Convert.ToString(arguments[1]) ?? string.Empty;
+            File.AppendAllText(path, text);
+            return null;
+        }), errorCode: "file_append_failed");
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsCopy, new BuiltInCallable((_, arguments) =>
+        {
+            var source = ResolvePath(arguments[0]);
+            var destination = ResolvePath(arguments[1]);
+            File.Copy(source, destination, overwrite: true);
+            return null;
+        }), errorCode: "file_copy_failed");
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsMove, new BuiltInCallable((_, arguments) =>
+        {
+            var source = ResolvePath(arguments[0]);
+            var destination = ResolvePath(arguments[1]);
+            MoveFileSystemEntry(source, destination);
+            return null;
+        }), errorCode: "file_move_failed");
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsRemove, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            RemoveFileSystemEntry(path);
+            return null;
+        }), errorCode: "file_remove_failed");
+
         RegisterBuiltIn(fs, BuiltInSymbols.FsExists, new BuiltInCallable((_, arguments) =>
         {
             var path = ResolvePath(arguments[0]);
             return File.Exists(path) || Directory.Exists(path);
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsIsFile, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return File.Exists(path);
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsIsDir, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return Directory.Exists(path);
         }), propagateErrors: false);
 
         RegisterBuiltIn(fs, BuiltInSymbols.FsInfo, new BuiltInCallable((_, arguments) =>
@@ -248,20 +297,95 @@ internal sealed class EvaluationContext
             return CreateFileInfoObject(path);
         }), propagateErrors: false);
 
+        RegisterBuiltIn(fs, BuiltInSymbols.FsSize, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            if (!File.Exists(path))
+            {
+                return RuntimeError.Create("file_size_failed", $"File '{path}' was not found.");
+            }
+
+            return new FileInfo(path).Length;
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsModified, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return GetFileSystemTimestamp(path, timestampKind: "modified");
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsCreated, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return GetFileSystemTimestamp(path, timestampKind: "created");
+        }), propagateErrors: false);
+
         RegisterBuiltIn(fs, BuiltInSymbols.FsList, new BuiltInCallable((_, arguments) =>
         {
             var path = ResolvePath(arguments[0]);
-            if (!Directory.Exists(path))
-            {
-                return RuntimeError.Create("file_list_failed", $"Directory '{path}' was not found.");
-            }
-
-            return Directory.EnumerateFileSystemEntries(path)
-                .Select(static entry => (object?)Path.GetFileName(entry))
-                .ToList();
+            return ListDirectoryEntries(path, ListKind.All);
         }));
 
         RegisterBuiltIn(fs, BuiltInSymbols.FsCwd, new BuiltInCallable((_, _) => Directory.GetCurrentDirectory()), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsFiles, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return ListDirectoryEntries(path, ListKind.Files);
+        }));
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsDirs, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return ListDirectoryEntries(path, ListKind.Directories);
+        }));
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsMkdir, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            Directory.CreateDirectory(path);
+            return null;
+        }), errorCode: "file_mkdir_failed");
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsChdir, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            Directory.SetCurrentDirectory(path);
+            return null;
+        }), errorCode: "file_chdir_failed");
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsJoin, new BuiltInCallable((_, arguments) =>
+        {
+            var left = Convert.ToString(arguments[0]) ?? string.Empty;
+            var right = Convert.ToString(arguments[1]) ?? string.Empty;
+            return Path.Combine(left, right);
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsName, new BuiltInCallable((_, arguments) =>
+        {
+            var path = Convert.ToString(arguments[0]) ?? string.Empty;
+            return Path.GetFileName(NormalizePathForInspection(path));
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsStem, new BuiltInCallable((_, arguments) =>
+        {
+            var path = Convert.ToString(arguments[0]) ?? string.Empty;
+            return Path.GetFileNameWithoutExtension(NormalizePathForInspection(path));
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsExt, new BuiltInCallable((_, arguments) =>
+        {
+            var path = Convert.ToString(arguments[0]) ?? string.Empty;
+            return Path.GetExtension(NormalizePathForInspection(path));
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsParent, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return Path.GetDirectoryName(path);
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsAbsolute, new BuiltInCallable((_, arguments) => ResolvePath(arguments[0])), propagateErrors: false);
 
         math["pi"] = Math.PI;
         math["tau"] = Math.Tau;
@@ -289,8 +413,26 @@ internal sealed class EvaluationContext
         RegisterBuiltIn(math, BuiltInSymbols.MathRound, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "round_failed", "round failed.", Math.Round)));
         RegisterBuiltIn(math, BuiltInSymbols.MathTrunc, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "trunc_failed", "trunc failed.", Math.Truncate)));
 
+        RegisterBuiltIn(json, BuiltInSymbols.JsonParse, new BuiltInCallable((_, arguments) =>
+        {
+            var text = Convert.ToString(arguments[0]) ?? string.Empty;
+            using var document = JsonDocument.Parse(text);
+            return ConvertJsonElement(document.RootElement);
+        }), errorCode: "json_parse_failed");
+
+        RegisterBuiltIn(json, BuiltInSymbols.JsonStringify, new BuiltInCallable((_, arguments) => SerializeJsonValue(arguments[0], indented: false)));
+        RegisterBuiltIn(json, BuiltInSymbols.JsonPretty, new BuiltInCallable((_, arguments) => SerializeJsonValue(arguments[0], indented: true)));
+
+        RegisterBuiltIn(http, BuiltInSymbols.HttpGet, new BuiltInCallable((_, arguments) => ExecuteHttpRequest("GET", arguments[0], null, null)), errorCode: "http_request_failed");
+        RegisterBuiltIn(http, BuiltInSymbols.HttpPost, new BuiltInCallable((_, arguments) => ExecuteHttpRequest("POST", arguments[0], arguments[1], null)), errorCode: "http_request_failed");
+        RegisterBuiltIn(http, BuiltInSymbols.HttpPut, new BuiltInCallable((_, arguments) => ExecuteHttpRequest("PUT", arguments[0], arguments[1], null)), errorCode: "http_request_failed");
+        RegisterBuiltIn(http, BuiltInSymbols.HttpDelete, new BuiltInCallable((_, arguments) => ExecuteHttpRequest("DELETE", arguments[0], null, null)), errorCode: "http_request_failed");
+        RegisterBuiltIn(http, BuiltInSymbols.HttpRequest, new BuiltInCallable((_, arguments) => ExecuteHttpRequest(arguments[0], arguments[1], arguments[2], arguments[3])), errorCode: "http_request_failed");
+
         corn["fs"] = fs;
         corn["math"] = math;
+        corn["json"] = json;
+        corn["http"] = http;
 
         environment.DeclareVariable(BuiltInVariables.Corn, corn);
     }
@@ -680,6 +822,96 @@ internal sealed class EvaluationContext
         return Path.GetFullPath(path);
     }
 
+    private static string NormalizePathForInspection(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return path;
+        }
+
+        var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.IsNullOrEmpty(trimmed) ? path : trimmed;
+    }
+
+    private static object GetFileSystemTimestamp(string path, string timestampKind)
+    {
+        if (File.Exists(path))
+        {
+            var info = new FileInfo(path);
+            return timestampKind == "created"
+                ? new DateTimeOffset(info.CreationTimeUtc).ToUnixTimeSeconds()
+                : new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds();
+        }
+
+        if (Directory.Exists(path))
+        {
+            var info = new DirectoryInfo(path);
+            return timestampKind == "created"
+                ? new DateTimeOffset(info.CreationTimeUtc).ToUnixTimeSeconds()
+                : new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds();
+        }
+
+        return RuntimeError.Create($"file_{timestampKind}_failed", $"Path '{path}' was not found.");
+    }
+
+    private static object ListDirectoryEntries(string path, ListKind kind)
+    {
+        if (!Directory.Exists(path))
+        {
+            return RuntimeError.Create("file_list_failed", $"Directory '{path}' was not found.");
+        }
+
+        IEnumerable<string> entries = kind switch
+        {
+            ListKind.Files => Directory.EnumerateFiles(path),
+            ListKind.Directories => Directory.EnumerateDirectories(path),
+            _ => Directory.EnumerateFileSystemEntries(path)
+        };
+
+        return entries
+            .Select(static entry => (object?)Path.GetFileName(entry))
+            .ToList();
+    }
+
+    private static void MoveFileSystemEntry(string source, string destination)
+    {
+        if (File.Exists(source))
+        {
+            File.Move(source, destination, overwrite: true);
+            return;
+        }
+
+        if (Directory.Exists(source))
+        {
+            if (Directory.Exists(destination))
+            {
+                throw new IOException($"Directory '{destination}' already exists.");
+            }
+
+            Directory.Move(source, destination);
+            return;
+        }
+
+        throw new IOException($"Path '{source}' was not found.");
+    }
+
+    private static void RemoveFileSystemEntry(string path)
+    {
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+            return;
+        }
+
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: false);
+            return;
+        }
+
+        throw new IOException($"Path '{path}' was not found.");
+    }
+
     private static IDictionary<string, object?> CreateFileInfoObject(string path)
     {
         var exists = File.Exists(path) || Directory.Exists(path);
@@ -856,6 +1088,157 @@ internal sealed class EvaluationContext
                 return false;
         }
     }
+
+    private static object? ConvertJsonElement(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Null => null,
+            JsonValueKind.False => false,
+            JsonValueKind.True => true,
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetInt64(out var integer) ? integer : element.GetDouble(),
+            JsonValueKind.Array => element.EnumerateArray()
+                .Select(ConvertJsonElement)
+                .ToList(),
+            JsonValueKind.Object => element.EnumerateObject()
+                .ToDictionary(
+                    static property => property.Name,
+                    property => ConvertJsonElement(property.Value),
+                    StringComparer.Ordinal),
+            _ => RuntimeError.Create("json_parse_failed", "Unsupported JSON value.")
+        };
+    }
+
+    private static object? ConvertToJsonValue(object? value)
+    {
+        if (value is null or string or bool or long or double)
+        {
+            return value;
+        }
+
+        if (value is char character)
+        {
+            return character.ToString();
+        }
+
+        if (value is IReadOnlyDictionary<string, object?> properties)
+        {
+            return properties.ToDictionary(
+                static property => property.Key,
+                property => ConvertToJsonValue(property.Value),
+                StringComparer.Ordinal);
+        }
+
+        if (value is IEnumerable<object?> values)
+        {
+            return values.Select(ConvertToJsonValue).ToList();
+        }
+
+        throw new InvalidOperationException("json.stringify can only serialize nil, bool, int, double, char, string, arrays, and objects.");
+    }
+
+    private static string SerializeJsonValue(object? value, bool indented)
+    {
+        return JsonSerializer.Serialize(
+            ConvertToJsonValue(value),
+            new JsonSerializerOptions
+            {
+                WriteIndented = indented
+            });
+    }
+
+    private static object ExecuteHttpRequest(object? methodValue, object? urlValue, object? bodyValue, object? headersValue)
+    {
+        var methodText = Convert.ToString(methodValue) ?? string.Empty;
+        var url = Convert.ToString(urlValue) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(methodText))
+        {
+            return RuntimeError.Create("http_request_failed", "HTTP method is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return RuntimeError.Create("http_request_failed", "HTTP url is required.");
+        }
+
+        var method = new HttpMethod(methodText.ToUpperInvariant());
+        using var request = new HttpRequestMessage(method, url);
+
+        if (bodyValue is not null)
+        {
+            request.Content = new StringContent(Convert.ToString(bodyValue) ?? string.Empty, Encoding.UTF8);
+        }
+
+        ApplyHttpHeaders(request, headersValue);
+
+        using var response = HttpClient.Send(request);
+        var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        return CreateHttpResponseObject(method.Method, response, body);
+    }
+
+    private static void ApplyHttpHeaders(HttpRequestMessage request, object? headersValue)
+    {
+        if (headersValue is null)
+        {
+            return;
+        }
+
+        if (headersValue is not IReadOnlyDictionary<string, object?> headers)
+        {
+            throw new InvalidOperationException("http.request headers must be an object.");
+        }
+
+        foreach (var header in headers)
+        {
+            var value = Convert.ToString(header.Value) ?? string.Empty;
+            if (string.Equals(header.Key, "content-type", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Content ??= new StringContent(string.Empty, Encoding.UTF8);
+                request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(value);
+                continue;
+            }
+
+            if (!request.Headers.TryAddWithoutValidation(header.Key, value))
+            {
+                request.Content ??= new StringContent(string.Empty, Encoding.UTF8);
+                request.Content.Headers.TryAddWithoutValidation(header.Key, value);
+            }
+        }
+    }
+
+    private static IDictionary<string, object?> CreateHttpResponseObject(string method, HttpResponseMessage response, string body)
+    {
+        var headers = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        foreach (var header in response.Headers)
+        {
+            headers[header.Key.ToLowerInvariant()] = string.Join(", ", header.Value);
+        }
+
+        foreach (var header in response.Content.Headers)
+        {
+            headers[header.Key.ToLowerInvariant()] = string.Join(", ", header.Value);
+        }
+
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["ok"] = response.IsSuccessStatusCode,
+            ["status"] = (long)(int)response.StatusCode,
+            ["reason"] = response.ReasonPhrase ?? string.Empty,
+            ["body"] = body,
+            ["headers"] = headers,
+            ["url"] = response.RequestMessage?.RequestUri?.ToString() ?? string.Empty,
+            ["method"] = method
+        };
+    }
+}
+
+internal enum ListKind
+{
+    All,
+    Files,
+    Directories
 }
 
 internal readonly record struct ExecutionSignal(ExecutionSignalKind Kind, object? Value)
@@ -892,7 +1275,7 @@ internal sealed class SafeBuiltInCallable(
         {
             return inner.Invoke(context, arguments);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or FormatException or OverflowException or ArgumentException)
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or FormatException or OverflowException or ArgumentException or JsonException or HttpRequestException or TaskCanceledException)
         {
             return RuntimeError.Create(errorCode ?? $"{name}_failed", exception.Message);
         }

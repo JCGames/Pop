@@ -43,7 +43,7 @@ public sealed class SemanticModelTests
     [TestMethod]
     public void CreateText_BindsCornFsBuiltInModule()
     {
-        var model = SemanticModel.CreateText("corn.fs.info");
+        var model = SemanticModel.CreateText("corn.fs.absolute");
 
         Assert.IsEmpty(model.Diagnostics);
 
@@ -56,6 +56,30 @@ public sealed class SemanticModelTests
     public void CreateText_BindsCornMathBuiltInModule()
     {
         var model = SemanticModel.CreateText("corn.math.sqrt");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var statement = (BoundExpressionStatement)model.Root.Statements[0];
+        var memberAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(memberAccess.Type);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsCornJsonBuiltInModule()
+    {
+        var model = SemanticModel.CreateText("corn.json.parse");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var statement = (BoundExpressionStatement)model.Root.Statements[0];
+        var memberAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(memberAccess.Type);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsCornHttpBuiltInModule()
+    {
+        var model = SemanticModel.CreateText("corn.http.get");
 
         Assert.IsEmpty(model.Diagnostics);
 
