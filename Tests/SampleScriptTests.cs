@@ -9,7 +9,7 @@ public sealed class SampleScriptTests
     public void TestScript_ParsesWithoutDiagnostics()
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        var scriptPath = Path.Combine(repositoryRoot, "Pop", "Scripts", "test.pop");
+        var scriptPath = Path.Combine(repositoryRoot, "Pop", "test.pop");
 
         var result = Parser.Parse(SourceFile.Load(new FileInfo(scriptPath)));
 

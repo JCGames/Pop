@@ -18,6 +18,7 @@ public enum BoundNodeKind
     VariableDeclarationExpression,
     AssignmentExpression,
     UnaryExpression,
+    PostfixUpdateExpression,
     BinaryExpression,
     ConditionalExpression,
     CallExpression,
@@ -161,6 +162,12 @@ public sealed class BoundUnaryExpression(
     public SyntaxKind OperatorKind { get; } = operatorKind;
     public BoundExpression Operand { get; } = operand;
     public override BoundNodeKind Kind => BoundNodeKind.UnaryExpression;
+}
+
+public sealed class BoundPostfixUpdateExpression(BoundExpression expression) : BoundExpression(expression.Type)
+{
+    public BoundExpression Expression { get; } = expression;
+    public override BoundNodeKind Kind => BoundNodeKind.PostfixUpdateExpression;
 }
 
 public sealed class BoundBinaryExpression(

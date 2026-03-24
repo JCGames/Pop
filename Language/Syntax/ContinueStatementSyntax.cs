@@ -2,13 +2,13 @@ namespace Pop.Language;
 
 public sealed class ContinueStatementSyntax : StatementSyntax
 {
-    public SyntaxToken ContKeyword { get; }
+    public SyntaxToken SkipKeyword { get; }
 
-    public ContinueStatementSyntax(SyntaxToken contKeyword)
+    public ContinueStatementSyntax(SyntaxToken skipKeyword)
     {
-        ContKeyword = contKeyword;
+        SkipKeyword = skipKeyword;
     }
 
     public override SyntaxKind Kind => SyntaxKind.ContinueStatement;
-    public override TextSpan Span => ContKeyword.Span;
+    public override TextSpan Span => SkipKeyword.Span;
 }

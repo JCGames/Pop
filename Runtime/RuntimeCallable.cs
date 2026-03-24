@@ -57,6 +57,12 @@ internal sealed class ArrayAtCallable(List<object?> array) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0 || index >= array.Count)
         {
@@ -71,6 +77,12 @@ internal sealed class ArrayAddCallable(List<object?> array) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         array.Add(arguments[0]);
         return null;
     }
@@ -80,6 +92,12 @@ internal sealed class ArrayInsertCallable(List<object?> array) : IRuntimeCallabl
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0)
         {
@@ -99,6 +117,12 @@ internal sealed class ArrayReplaceCallable(List<object?> array) : IRuntimeCallab
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0 || index >= array.Count)
         {
@@ -115,6 +139,12 @@ internal sealed class ArrayRemoveCallable(List<object?> array) : IRuntimeCallabl
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0 || index >= array.Count)
         {
@@ -131,9 +161,15 @@ internal sealed class ArrayForEachCallable(List<object?> array) : IRuntimeCallab
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         if (arguments[0] is not IRuntimeCallable callable)
         {
-            throw new InvalidOperationException("forEach expects a callable argument.");
+            return RuntimeError.Create("for_each_failed", "forEach expects a callable argument.");
         }
 
         foreach (var item in array)
@@ -149,9 +185,15 @@ internal sealed class StringForEachCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         if (arguments[0] is not IRuntimeCallable callable)
         {
-            throw new InvalidOperationException("forEach expects a callable argument.");
+            return RuntimeError.Create("for_each_failed", "forEach expects a callable argument.");
         }
 
         foreach (var character in text)
@@ -167,6 +209,12 @@ internal sealed class StringAddCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         return text + RuntimeValueFormatter.Format(arguments[0]);
     }
 }
@@ -175,6 +223,12 @@ internal sealed class StringContainsCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         return text.Contains(RuntimeValueFormatter.Format(arguments[0]), StringComparison.Ordinal);
     }
 }
@@ -183,6 +237,12 @@ internal sealed class StringInsertCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0)
         {
@@ -201,6 +261,12 @@ internal sealed class StringReplaceCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0 || index >= text.Length)
         {
@@ -215,6 +281,12 @@ internal sealed class StringAtCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0 || index >= text.Length)
         {
@@ -229,6 +301,12 @@ internal sealed class StringRemoveCallable(string text) : IRuntimeCallable
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var index = Convert.ToInt32(arguments[0]);
         if (index < 0 || index >= text.Length)
         {
@@ -243,6 +321,12 @@ internal sealed class ObjectGetCallable(IDictionary<string, object?> properties)
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var name = Convert.ToString(arguments[0]) ?? string.Empty;
         return properties.TryGetValue(name, out var value) ? value : null;
     }
@@ -252,6 +336,12 @@ internal sealed class ObjectAddCallable(IDictionary<string, object?> properties)
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var name = Convert.ToString(arguments[0]) ?? string.Empty;
         properties[name] = arguments[1];
         return null;
@@ -262,6 +352,12 @@ internal sealed class ObjectRemoveCallable(IDictionary<string, object?> properti
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         var name = Convert.ToString(arguments[0]) ?? string.Empty;
         if (!properties.TryGetValue(name, out var value))
         {
@@ -277,9 +373,15 @@ internal sealed class ObjectForEachCallable(IDictionary<string, object?> propert
 {
     public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
     {
+        var propagatedError = RuntimeError.PropagateFirst(arguments);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         if (arguments[0] is not IRuntimeCallable callable)
         {
-            throw new InvalidOperationException("forEach expects a callable argument.");
+            return RuntimeError.Create("for_each_failed", "forEach expects a callable argument.");
         }
 
         foreach (var pair in properties)

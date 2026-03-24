@@ -196,6 +196,23 @@ public sealed class SyntaxNodePrinterTests
     }
 
     [TestMethod]
+    public void WriteTo_PrintsPostfixUnaryExpressionTree()
+    {
+        var result = Parser.ParseText("value++");
+        var writer = new StringWriter();
+
+        SyntaxNodePrinter.WriteTo(writer, result.Root);
+
+        const string expected =
+            "└── CompilationUnit" + "\r\n" +
+            "    └── ExpressionStatement" + "\r\n" +
+            "        └── PostfixUnaryExpression ++" + "\r\n" +
+            "            └── NameExpression value" + "\r\n";
+
+        Assert.AreEqual(expected, writer.ToString());
+    }
+
+    [TestMethod]
     public void WriteTo_PrintsWhileStatementTree()
     {
         var result = Parser.ParseText("while flag { var value -> 1 }");
@@ -292,7 +309,7 @@ public sealed class SyntaxNodePrinterTests
     [TestMethod]
     public void WriteTo_PrintsContinueStatementTree()
     {
-        var result = Parser.ParseText("cont");
+        var result = Parser.ParseText("skip");
         var writer = new StringWriter();
 
         SyntaxNodePrinter.WriteTo(writer, result.Root);
@@ -307,7 +324,7 @@ public sealed class SyntaxNodePrinterTests
     [TestMethod]
     public void WriteTo_PrintsBreakStatementTree()
     {
-        var result = Parser.ParseText("abort");
+        var result = Parser.ParseText("break");
         var writer = new StringWriter();
 
         SyntaxNodePrinter.WriteTo(writer, result.Root);

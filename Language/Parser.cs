@@ -55,8 +55,8 @@ public sealed class Parser
             SyntaxKind.PublicKeyword when Peek(1).Kind == SyntaxKind.FunKeyword => ParseFunctionDeclarationStatement(),
             SyntaxKind.FunKeyword => ParseFunctionDeclarationStatement(),
             SyntaxKind.RetKeyword => ParseReturnStatement(),
-            SyntaxKind.ContKeyword => ParseContinueStatement(),
-            SyntaxKind.AbortKeyword => ParseBreakStatement(),
+            SyntaxKind.SkipKeyword => ParseContinueStatement(),
+            SyntaxKind.BreakKeyword => ParseBreakStatement(),
             SyntaxKind.WhileKeyword => ParseWhileStatement(),
             SyntaxKind.IfKeyword => ParseIfStatement(),
             _ => new ExpressionStatementSyntax(ParseExpression())
@@ -65,14 +65,14 @@ public sealed class Parser
 
     private ContinueStatementSyntax ParseContinueStatement()
     {
-        var contKeyword = Match(SyntaxKind.ContKeyword);
-        return new ContinueStatementSyntax(contKeyword);
+        var skipKeyword = Match(SyntaxKind.SkipKeyword);
+        return new ContinueStatementSyntax(skipKeyword);
     }
 
     private BreakStatementSyntax ParseBreakStatement()
     {
-        var abortKeyword = Match(SyntaxKind.AbortKeyword);
-        return new BreakStatementSyntax(abortKeyword);
+        var breakKeyword = Match(SyntaxKind.BreakKeyword);
+        return new BreakStatementSyntax(breakKeyword);
     }
 
     private ReturnStatementSyntax ParseReturnStatement()
@@ -259,17 +259,39 @@ public sealed class Parser
     {
         var expression = ParsePrimaryExpression();
 
-        while (Current.Kind is SyntaxKind.OpenParenToken or SyntaxKind.DotToken)
+        while (true)
         {
             expression = Current.Kind switch
             {
                 SyntaxKind.OpenParenToken => ParseCallExpression(expression),
                 SyntaxKind.DotToken => ParseMemberAccessExpression(expression),
+                SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken => ParsePostfixUnaryExpression(expression),
                 _ => expression
             };
+
+            if (Current.Kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken)
+            {
+                continue;
+            }
+
+            if (expression is PostfixUnaryExpressionSyntax)
+            {
+                break;
+            }
+
+            if (Current.Kind is not SyntaxKind.OpenParenToken and not SyntaxKind.DotToken)
+            {
+                break;
+            }
         }
 
         return expression;
+    }
+
+    private PostfixUnaryExpressionSyntax ParsePostfixUnaryExpression(ExpressionSyntax operand)
+    {
+        var operatorToken = NextToken();
+        return new PostfixUnaryExpressionSyntax(operand, operatorToken);
     }
 
     private MemberAccessExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax target)
@@ -492,8 +514,8 @@ public sealed class Parser
             SyntaxKind.PublicKeyword => "'public'",
             SyntaxKind.FunKeyword => "'fun'",
             SyntaxKind.RetKeyword => "'ret'",
-            SyntaxKind.ContKeyword => "'cont'",
-            SyntaxKind.AbortKeyword => "'abort'",
+            SyntaxKind.SkipKeyword => "'skip'",
+            SyntaxKind.BreakKeyword => "'break'",
             SyntaxKind.InjectKeyword => "'inject'",
             SyntaxKind.WhileKeyword => "'while'",
             SyntaxKind.IfKeyword => "'if'",
@@ -510,7 +532,9 @@ public sealed class Parser
             SyntaxKind.QuestionToken => "'?'",
             SyntaxKind.ColonToken => "':'",
             SyntaxKind.PlusToken => "'+'",
+            SyntaxKind.PlusPlusToken => "'++'",
             SyntaxKind.MinusToken => "'-'",
+            SyntaxKind.MinusMinusToken => "'--'",
             SyntaxKind.StarToken => "'*'",
             SyntaxKind.SlashToken => "'/'",
             SyntaxKind.PercentToken => "'%'",

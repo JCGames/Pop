@@ -127,6 +127,34 @@ public sealed class ParserTests
     }
 
     [TestMethod]
+    public void ParseText_ParsesPostfixIncrementExpression()
+    {
+        var result = Parser.ParseText("value++");
+
+        Assert.IsEmpty(result.Diagnostics);
+        var statement = (ExpressionStatementSyntax)result.Root.Statements[0];
+        Assert.IsInstanceOfType<PostfixUnaryExpressionSyntax>(statement.Expression);
+
+        var postfix = (PostfixUnaryExpressionSyntax)statement.Expression;
+        Assert.AreEqual(SyntaxKind.PlusPlusToken, postfix.OperatorToken.Kind);
+        Assert.IsInstanceOfType<NameExpressionSyntax>(postfix.Operand);
+    }
+
+    [TestMethod]
+    public void ParseText_ParsesPostfixDecrementExpressionOnMemberAccess()
+    {
+        var result = Parser.ParseText("obj.count--");
+
+        Assert.IsEmpty(result.Diagnostics);
+        var statement = (ExpressionStatementSyntax)result.Root.Statements[0];
+        Assert.IsInstanceOfType<PostfixUnaryExpressionSyntax>(statement.Expression);
+
+        var postfix = (PostfixUnaryExpressionSyntax)statement.Expression;
+        Assert.AreEqual(SyntaxKind.MinusMinusToken, postfix.OperatorToken.Kind);
+        Assert.IsInstanceOfType<MemberAccessExpressionSyntax>(postfix.Operand);
+    }
+
+    [TestMethod]
     public void ParseText_ParsesVariableDeclarationExpressions()
     {
         var result = Parser.ParseText("var a -> 32.5");
@@ -307,7 +335,7 @@ public sealed class ParserTests
     [TestMethod]
     public void ParseText_ParsesContinueStatement()
     {
-        var result = Parser.ParseText("cont");
+        var result = Parser.ParseText("skip");
 
         Assert.IsEmpty(result.Diagnostics);
         Assert.IsInstanceOfType<ContinueStatementSyntax>(result.Root.Statements[0]);
@@ -316,7 +344,7 @@ public sealed class ParserTests
     [TestMethod]
     public void ParseText_ParsesBreakStatement()
     {
-        var result = Parser.ParseText("abort");
+        var result = Parser.ParseText("break");
 
         Assert.IsEmpty(result.Diagnostics);
         Assert.IsInstanceOfType<BreakStatementSyntax>(result.Root.Statements[0]);
@@ -325,7 +353,7 @@ public sealed class ParserTests
     [TestMethod]
     public void ParseText_ParsesContinueAndBreakInsideWhileStatement()
     {
-        var result = Parser.ParseText("while flag { cont abort }");
+        var result = Parser.ParseText("while flag { skip break }");
 
         Assert.IsEmpty(result.Diagnostics);
         Assert.IsInstanceOfType<WhileStatementSyntax>(result.Root.Statements[0]);

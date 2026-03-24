@@ -38,6 +38,10 @@ public static class SyntaxNodePrinter
                 writer.Write(" ");
                 writer.Write(memberAccess.IdentifierToken.Text);
                 break;
+            case PostfixUnaryExpressionSyntax postfixUnary:
+                writer.Write(" ");
+                writer.Write(postfixUnary.OperatorToken.Text);
+                break;
             case ObjectPropertySyntax property:
                 writer.Write(" ");
                 writer.Write(property.IdentifierToken.Text);
@@ -96,6 +100,7 @@ public static class SyntaxNodePrinter
             ParameterSyntax parameter => [new NameExpressionSyntax(parameter.IdentifierToken)],
             ParenthesizedExpressionSyntax parenthesized => [parenthesized.Expression],
             UnaryExpressionSyntax unary => [unary.Operand],
+            PostfixUnaryExpressionSyntax postfixUnary => [postfixUnary.Operand],
             BinaryExpressionSyntax binary => [binary.Left, binary.Right],
             ConditionalExpressionSyntax conditional => [conditional.Condition, conditional.WhenTrue, conditional.WhenFalse],
             VariableDeclarationExpressionSyntax declaration => [new NameExpressionSyntax(declaration.IdentifierToken), declaration.Initializer],

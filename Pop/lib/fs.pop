@@ -1,0 +1,23 @@
+public fun read(path) {
+    ret corn.fs.read(path)
+}
+
+public fun write(path, text) {
+    ret corn.fs.write(path, text)
+}
+
+public fun exists(path) {
+    ret corn.fs.exists(path)
+}
+
+public fun info(path) {
+    ret corn.fs.info(path)
+}
+
+public fun list(path) {
+    ret corn.fs.list(path)
+}
+
+public fun cwd() {
+    ret corn.fs.cwd()
+}

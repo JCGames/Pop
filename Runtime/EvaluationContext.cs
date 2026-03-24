@@ -123,6 +123,7 @@ internal sealed class EvaluationContext
             BoundAssignmentExpression assignment => EvaluateAssignmentExpression(assignment, environment, sourceFile),
             BoundMemberAssignmentExpression memberAssignment => EvaluateMemberAssignmentExpression(memberAssignment, environment, sourceFile),
             BoundUnaryExpression unary => EvaluateUnaryExpression(unary, environment, sourceFile),
+            BoundPostfixUpdateExpression postfixUpdate => EvaluateExpression(postfixUpdate.Expression, environment, sourceFile),
             BoundBinaryExpression binary => EvaluateBinaryExpression(binary, environment, sourceFile),
             BoundConditionalExpression conditional => EvaluateConditionalExpression(conditional, environment, sourceFile),
             BoundCallExpression call => EvaluateCallExpression(call, environment, sourceFile),
@@ -137,13 +138,22 @@ internal sealed class EvaluationContext
     private object EvaluateInjectExpression(BoundInjectExpression injectExpression, SourceFile sourceFile)
     {
         var resolvedPath = ResolvePath(sourceFile, injectExpression.Path);
-        var injectedFile = SourceFile.Load(new FileInfo(resolvedPath));
-        var model = SemanticModel.Create(injectedFile);
-        if (model.Diagnostics.Count > 0)
+        SemanticModel model;
+        try
         {
-            throw new InvalidOperationException(string.Join(Environment.NewLine, model.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+            model = ModuleLoader.LoadSemanticModel(resolvedPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return RuntimeError.Create("inject_failed", exception.Message);
         }
 
+        if (model.Diagnostics.Count > 0)
+        {
+            return RuntimeError.Create("inject_failed", string.Join(Environment.NewLine, model.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+        }
+
+        var injectedFile = model.ParseResult.SourceFile;
         var moduleEnvironment = CreateGlobalEnvironment();
         ExecuteCompilationUnit(model.Root, moduleEnvironment, injectedFile);
 
@@ -170,54 +180,117 @@ internal sealed class EvaluationContext
     private void DeclareBuiltIns(RuntimeEnvironment environment)
     {
         var corn = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var fs = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var math = new Dictionary<string, object?>(StringComparer.Ordinal);
 
         RegisterBuiltIn(corn, BuiltInSymbols.Print, new BuiltInCallable((_, arguments) =>
         {
             _output.Write(RuntimeValueFormatter.Format(arguments[0]));
             return null;
-        }));
+        }), propagateErrors: false);
 
         RegisterBuiltIn(corn, BuiltInSymbols.PrintLn, new BuiltInCallable((_, arguments) =>
         {
             _output.WriteLine(RuntimeValueFormatter.Format(arguments[0]));
             return null;
-        }));
+        }), propagateErrors: false);
 
         RegisterBuiltIn(corn, BuiltInSymbols.Type, new BuiltInCallable((_, arguments) => GetTypeName(arguments[0])));
-        RegisterBuiltIn(corn, BuiltInSymbols.Str, new BuiltInCallable((_, arguments) => RuntimeValueFormatter.Format(arguments[0])));
-        RegisterBuiltIn(corn, BuiltInSymbols.Int, new BuiltInCallable((_, arguments) => ConvertToInt(arguments[0])));
-        RegisterBuiltIn(corn, BuiltInSymbols.Double, new BuiltInCallable((_, arguments) => ConvertToDouble(arguments[0])));
+        RegisterBuiltIn(corn, BuiltInSymbols.Str, new BuiltInCallable((_, arguments) => RuntimeValueFormatter.Format(arguments[0])), propagateErrors: false);
+        RegisterBuiltIn(corn, BuiltInSymbols.Int, new BuiltInCallable((_, arguments) => ConvertToInt(arguments[0], "int_conversion_failed", "int conversion failed.")));
+        RegisterBuiltIn(corn, BuiltInSymbols.Double, new BuiltInCallable((_, arguments) => ConvertToDouble(arguments[0], "double_conversion_failed", "double conversion failed.")));
         RegisterBuiltIn(corn, BuiltInSymbols.Bool, new BuiltInCallable((_, arguments) => ConvertToBool(arguments[0])));
-        RegisterBuiltIn(corn, BuiltInSymbols.Input, new BuiltInCallable((_, _) => _input.ReadLine() ?? string.Empty));
+        RegisterBuiltIn(corn, BuiltInSymbols.IsError, new BuiltInCallable((_, arguments) => RuntimeError.IsError(arguments[0])), propagateErrors: false);
+        RegisterBuiltIn(corn, BuiltInSymbols.Error, new BuiltInCallable((_, arguments) =>
+            RuntimeError.Create(
+                Convert.ToString(arguments[0]) ?? string.Empty,
+                Convert.ToString(arguments[1]) ?? string.Empty)), propagateErrors: false);
+        RegisterBuiltIn(corn, BuiltInSymbols.Input, new BuiltInCallable((_, _) => _input.ReadLine() ?? string.Empty), propagateErrors: false);
 
         RegisterBuiltIn(corn, BuiltInSymbols.Keys, new BuiltInCallable((_, arguments) => arguments[0] switch
         {
             IReadOnlyDictionary<string, object?> properties => properties.Keys.Cast<object?>().ToList(),
-            _ => throw new InvalidOperationException("keys expects an object.")
+            _ => RuntimeError.Create("keys_failed", "keys expects an object.")
         }));
 
         RegisterBuiltIn(corn, BuiltInSymbols.Has, new BuiltInCallable((_, arguments) => arguments[0] switch
         {
             IReadOnlyDictionary<string, object?> properties => properties.ContainsKey(Convert.ToString(arguments[1]) ?? string.Empty),
-            _ => throw new InvalidOperationException("has expects an object as its first argument.")
+            _ => RuntimeError.Create("has_failed", "has expects an object as its first argument.")
         }));
 
         RegisterBuiltIn(corn, BuiltInSymbols.Clock, new BuiltInCallable((_, _) =>
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d));
 
-        RegisterBuiltIn(corn, BuiltInSymbols.Read, new BuiltInCallable((_, arguments) =>
+        RegisterBuiltIn(fs, BuiltInSymbols.FsRead, new BuiltInCallable((_, arguments) =>
         {
             var path = ResolvePath(arguments[0]);
             return File.ReadAllText(path);
-        }));
+        }), errorCode: "file_read_failed");
 
-        RegisterBuiltIn(corn, BuiltInSymbols.Write, new BuiltInCallable((_, arguments) =>
+        RegisterBuiltIn(fs, BuiltInSymbols.FsWrite, new BuiltInCallable((_, arguments) =>
         {
             var path = ResolvePath(arguments[0]);
             var text = Convert.ToString(arguments[1]) ?? string.Empty;
             File.WriteAllText(path, text);
             return null;
+        }), errorCode: "file_write_failed");
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsExists, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return File.Exists(path) || Directory.Exists(path);
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsInfo, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            return CreateFileInfoObject(path);
+        }), propagateErrors: false);
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsList, new BuiltInCallable((_, arguments) =>
+        {
+            var path = ResolvePath(arguments[0]);
+            if (!Directory.Exists(path))
+            {
+                return RuntimeError.Create("file_list_failed", $"Directory '{path}' was not found.");
+            }
+
+            return Directory.EnumerateFileSystemEntries(path)
+                .Select(static entry => (object?)Path.GetFileName(entry))
+                .ToList();
         }));
+
+        RegisterBuiltIn(fs, BuiltInSymbols.FsCwd, new BuiltInCallable((_, _) => Directory.GetCurrentDirectory()), propagateErrors: false);
+
+        math["pi"] = Math.PI;
+        math["tau"] = Math.Tau;
+        math["e"] = Math.E;
+
+        RegisterBuiltIn(math, BuiltInSymbols.MathAbs, new BuiltInCallable((_, arguments) => EvaluateMathAbs(arguments[0])));
+        RegisterBuiltIn(math, BuiltInSymbols.MathMin, new BuiltInCallable((_, arguments) => EvaluateMathMin(arguments[0], arguments[1])));
+        RegisterBuiltIn(math, BuiltInSymbols.MathMax, new BuiltInCallable((_, arguments) => EvaluateMathMax(arguments[0], arguments[1])));
+        RegisterBuiltIn(math, BuiltInSymbols.MathClamp, new BuiltInCallable((_, arguments) => EvaluateMathClamp(arguments[0], arguments[1], arguments[2])));
+        RegisterBuiltIn(math, BuiltInSymbols.MathSqrt, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "sqrt_failed", "sqrt is only defined for values greater than or equal to zero.", Math.Sqrt, value => value >= 0)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathPow, new BuiltInCallable((_, arguments) => EvaluateMathBinary(arguments[0], arguments[1], Math.Pow)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathSin, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "sin_failed", "sin failed.", Math.Sin)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathCos, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "cos_failed", "cos failed.", Math.Cos)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathTan, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "tan_failed", "tan failed.", Math.Tan)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathAsin, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "asin_failed", "asin is only defined for values from -1 to 1.", Math.Asin, value => value >= -1 && value <= 1)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathAcos, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "acos_failed", "acos is only defined for values from -1 to 1.", Math.Acos, value => value >= -1 && value <= 1)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathAtan, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "atan_failed", "atan failed.", Math.Atan)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathAtan2, new BuiltInCallable((_, arguments) => EvaluateMathBinary(arguments[0], arguments[1], Math.Atan2)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathLog, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "log_failed", "log is only defined for values greater than zero.", Math.Log, value => value > 0)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathLog10, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "log10_failed", "log10 is only defined for values greater than zero.", Math.Log10, value => value > 0)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathLog2, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "log2_failed", "log2 is only defined for values greater than zero.", Math.Log2, value => value > 0)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathExp, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "exp_failed", "exp failed.", Math.Exp)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathFloor, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "floor_failed", "floor failed.", Math.Floor)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathCeil, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "ceil_failed", "ceil failed.", Math.Ceiling)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathRound, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "round_failed", "round failed.", Math.Round)));
+        RegisterBuiltIn(math, BuiltInSymbols.MathTrunc, new BuiltInCallable((_, arguments) => EvaluateMathUnary(arguments[0], "trunc_failed", "trunc failed.", Math.Truncate)));
+
+        corn["fs"] = fs;
+        corn["math"] = math;
 
         environment.DeclareVariable(BuiltInVariables.Corn, corn);
     }
@@ -225,9 +298,11 @@ internal sealed class EvaluationContext
     private static void RegisterBuiltIn(
         IDictionary<string, object?> corn,
         FunctionSymbol symbol,
-        IRuntimeCallable callable)
+        IRuntimeCallable callable,
+        bool propagateErrors = true,
+        string? errorCode = null)
     {
-        corn[symbol.Name] = callable;
+        corn[symbol.Name] = new SafeBuiltInCallable(callable, symbol.Name, propagateErrors, errorCode);
     }
 
     private object? EvaluateNameExpression(BoundNameExpression name, RuntimeEnvironment environment)
@@ -236,7 +311,7 @@ internal sealed class EvaluationContext
         {
             VariableSymbol variable when environment.TryGetVariable(variable, out var value) => value,
             FunctionSymbol function when environment.TryGetFunction(function, out var callable) => callable,
-            _ => throw new InvalidOperationException($"Undefined runtime symbol '{name.Symbol.Name}'.")
+            _ => RuntimeError.Create("undefined_runtime_symbol", $"Undefined runtime symbol '{name.Symbol.Name}'.")
         };
     }
 
@@ -252,7 +327,7 @@ internal sealed class EvaluationContext
         var value = EvaluateExpression(assignment.Expression, environment, sourceFile);
         if (!environment.TryAssignVariable(assignment.Variable, value))
         {
-            throw new InvalidOperationException($"Undefined runtime variable '{assignment.Variable.Name}'.");
+            return RuntimeError.Create("undefined_runtime_variable", $"Undefined runtime variable '{assignment.Variable.Name}'.");
         }
 
         return value;
@@ -261,9 +336,15 @@ internal sealed class EvaluationContext
     private object? EvaluateMemberAssignmentExpression(BoundMemberAssignmentExpression assignment, RuntimeEnvironment environment, SourceFile sourceFile)
     {
         var target = EvaluateExpression(assignment.Target, environment, sourceFile);
+        var propagatedError = RuntimeError.Propagate(target);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
         if (target is not IDictionary<string, object?> properties)
         {
-            throw new InvalidOperationException("Member assignment target is not an object.");
+            return RuntimeError.Create("invalid_member_assignment_target", "Member assignment target is not an object.");
         }
 
         var value = EvaluateExpression(assignment.Expression, environment, sourceFile);
@@ -274,6 +355,11 @@ internal sealed class EvaluationContext
     private object? EvaluateUnaryExpression(BoundUnaryExpression unary, RuntimeEnvironment environment, SourceFile sourceFile)
     {
         var operand = EvaluateExpression(unary.Operand, environment, sourceFile);
+        if (RuntimeError.IsError(operand))
+        {
+            return operand;
+        }
+
         return unary.OperatorKind switch
         {
             SyntaxKind.PlusToken => operand,
@@ -281,7 +367,7 @@ internal sealed class EvaluationContext
             SyntaxKind.MinusToken when operand is double floating => -floating,
             SyntaxKind.BangToken when operand is bool boolean => !boolean,
             SyntaxKind.TildeToken when operand is long integer => ~integer,
-            _ => throw new InvalidOperationException($"Unsupported unary operation '{unary.OperatorKind}'.")
+            _ => RuntimeError.Create("invalid_unary_operation", $"Unsupported unary operation '{unary.OperatorKind}'.")
         };
     }
 
@@ -289,6 +375,11 @@ internal sealed class EvaluationContext
     {
         var left = EvaluateExpression(binary.Left, environment, sourceFile);
         var right = EvaluateExpression(binary.Right, environment, sourceFile);
+        var propagatedError = RuntimeError.Propagate(left, right);
+        if (propagatedError is not null)
+        {
+            return propagatedError!;
+        }
 
         return binary.OperatorKind switch
         {
@@ -310,7 +401,7 @@ internal sealed class EvaluationContext
             SyntaxKind.CaretToken when left is long leftInt && right is long rightInt => leftInt ^ rightInt,
             SyntaxKind.LessLessToken when left is long leftInt && right is long rightInt => leftInt << (int)rightInt,
             SyntaxKind.GreaterGreaterToken when left is long leftInt && right is long rightInt => leftInt >> (int)rightInt,
-            _ => throw new InvalidOperationException($"Unsupported binary operation '{binary.OperatorKind}'.")
+            _ => RuntimeError.Create("invalid_binary_operation", $"Unsupported binary operation '{binary.OperatorKind}'.")
         };
     }
 
@@ -324,9 +415,14 @@ internal sealed class EvaluationContext
     private object? EvaluateCallExpression(BoundCallExpression call, RuntimeEnvironment environment, SourceFile sourceFile)
     {
         var target = EvaluateExpression(call.Target, environment, sourceFile);
+        if (RuntimeError.IsError(target))
+        {
+            return target;
+        }
+
         if (target is not IRuntimeCallable callable)
         {
-            throw new InvalidOperationException("Call target is not callable.");
+            return RuntimeError.Create("invalid_call_target", "Call target is not callable.");
         }
 
         var arguments = call.Arguments.Select(argument => EvaluateExpression(argument, environment, sourceFile)).ToArray();
@@ -342,7 +438,7 @@ internal sealed class EvaluationContext
             {
                 "min" => long.MinValue,
                 "max" => long.MaxValue,
-                _ => throw new InvalidOperationException($"Int does not contain member '{memberAccess.MemberName}'.")
+                _ => RuntimeError.Create("invalid_member_access", $"Int does not contain member '{memberAccess.MemberName}'.")
             };
         }
 
@@ -352,7 +448,7 @@ internal sealed class EvaluationContext
             {
                 "min" => double.MinValue,
                 "max" => double.MaxValue,
-                _ => throw new InvalidOperationException($"Double does not contain member '{memberAccess.MemberName}'.")
+                _ => RuntimeError.Create("invalid_member_access", $"Double does not contain member '{memberAccess.MemberName}'.")
             };
         }
 
@@ -368,7 +464,7 @@ internal sealed class EvaluationContext
                 "replace" => new StringReplaceCallable(text),
                 "remove" => new StringRemoveCallable(text),
                 "forEach" => new StringForEachCallable(text),
-                _ => throw new InvalidOperationException($"String does not contain member '{memberAccess.MemberName}'.")
+                _ => RuntimeError.Create("invalid_member_access", $"String does not contain member '{memberAccess.MemberName}'.")
             };
         }
 
@@ -383,7 +479,7 @@ internal sealed class EvaluationContext
                 "replace" => new ArrayReplaceCallable(array),
                 "remove" => new ArrayRemoveCallable(array),
                 "forEach" => new ArrayForEachCallable(array),
-                _ => throw new InvalidOperationException($"Array does not contain member '{memberAccess.MemberName}'.")
+                _ => RuntimeError.Create("invalid_member_access", $"Array does not contain member '{memberAccess.MemberName}'.")
             };
         }
 
@@ -402,11 +498,11 @@ internal sealed class EvaluationContext
                 "add" => new ObjectAddCallable(mutableObjectProperties),
                 "remove" => new ObjectRemoveCallable(mutableObjectProperties),
                 "forEach" => new ObjectForEachCallable(mutableObjectProperties),
-                _ => throw new InvalidOperationException($"Object does not contain member '{memberAccess.MemberName}'.")
+                _ => RuntimeError.Create("invalid_member_access", $"Object does not contain member '{memberAccess.MemberName}'.")
             };
         }
 
-        throw new InvalidOperationException($"Object does not contain member '{memberAccess.MemberName}'.");
+        return RuntimeError.Create("invalid_member_access", $"Object does not contain member '{memberAccess.MemberName}'.");
     }
 
     private object EvaluateObjectExpression(BoundObjectExpression objectExpression, RuntimeEnvironment environment, SourceFile sourceFile)
@@ -443,26 +539,40 @@ internal sealed class EvaluationContext
         Func<long, long, long> integerOperation,
         Func<double, double, double> floatingOperation)
     {
-        if (left is double || right is double)
+        try
         {
-            return floatingOperation(Convert.ToDouble(left), Convert.ToDouble(right));
-        }
+            if (left is double || right is double)
+            {
+                return floatingOperation(Convert.ToDouble(left), Convert.ToDouble(right));
+            }
 
-        return integerOperation(Convert.ToInt64(left), Convert.ToInt64(right));
+            return integerOperation(Convert.ToInt64(left), Convert.ToInt64(right));
+        }
+        catch
+        {
+            return RuntimeError.Create("numeric_operation_failed", "Numeric operation failed.");
+        }
     }
 
-    private static bool EvaluateComparison(
+    private static object EvaluateComparison(
         object? left,
         object? right,
         Func<long, long, bool> integerOperation,
         Func<double, double, bool> floatingOperation)
     {
-        if (left is double || right is double)
+        try
         {
-            return floatingOperation(Convert.ToDouble(left), Convert.ToDouble(right));
-        }
+            if (left is double || right is double)
+            {
+                return floatingOperation(Convert.ToDouble(left), Convert.ToDouble(right));
+            }
 
-        return integerOperation(Convert.ToInt64(left), Convert.ToInt64(right));
+            return integerOperation(Convert.ToInt64(left), Convert.ToInt64(right));
+        }
+        catch
+        {
+            return RuntimeError.Create("comparison_failed", "Comparison failed.");
+        }
     }
 
     private static bool IsTrue(object? value)
@@ -470,33 +580,47 @@ internal sealed class EvaluationContext
         return value is true;
     }
 
-    private static long ConvertToInt(object? value)
+    private static object ConvertToInt(object? value, string errorCode, string errorMessage)
     {
-        return value switch
+        try
         {
-            null => 0,
-            long integer => integer,
-            double floating => (long)floating,
-            bool boolean => boolean ? 1 : 0,
-            char character => character,
-            string text when long.TryParse(text, out var parsed) => parsed,
-            string text when double.TryParse(text, out var floating) => (long)floating,
-            _ => throw new InvalidOperationException("int conversion failed.")
-        };
+            return value switch
+            {
+                null => 0L,
+                long integer => integer,
+                double floating => (long)floating,
+                bool boolean => boolean ? 1L : 0L,
+                char character => character,
+                string text when long.TryParse(text, out var parsed) => parsed,
+                string text when double.TryParse(text, out var floating) => (long)floating,
+                _ => RuntimeError.Create(errorCode, errorMessage)
+            };
+        }
+        catch
+        {
+            return RuntimeError.Create(errorCode, errorMessage);
+        }
     }
 
-    private static double ConvertToDouble(object? value)
+    private static object ConvertToDouble(object? value, string errorCode, string errorMessage)
     {
-        return value switch
+        try
         {
-            null => 0d,
-            long integer => integer,
-            double floating => floating,
-            bool boolean => boolean ? 1d : 0d,
-            char character => character,
-            string text when double.TryParse(text, out var parsed) => parsed,
-            _ => throw new InvalidOperationException("double conversion failed.")
-        };
+            return value switch
+            {
+                null => 0d,
+                long integer => integer,
+                double floating => floating,
+                bool boolean => boolean ? 1d : 0d,
+                char character => character,
+                string text when double.TryParse(text, out var parsed) => parsed,
+                _ => RuntimeError.Create(errorCode, errorMessage)
+            };
+        }
+        catch
+        {
+            return RuntimeError.Create(errorCode, errorMessage);
+        }
     }
 
     private static bool ConvertToBool(object? value)
@@ -520,6 +644,7 @@ internal sealed class EvaluationContext
     {
         return value switch
         {
+            _ when RuntimeError.IsError(value) => "error",
             null => "nil",
             long => "int",
             double => "double",
@@ -554,6 +679,183 @@ internal sealed class EvaluationContext
 
         return Path.GetFullPath(path);
     }
+
+    private static IDictionary<string, object?> CreateFileInfoObject(string path)
+    {
+        var exists = File.Exists(path) || Directory.Exists(path);
+        var isFile = File.Exists(path);
+        var isDir = Directory.Exists(path);
+
+        DateTimeOffset? created = null;
+        DateTimeOffset? modified = null;
+        long? size = null;
+
+        if (isFile)
+        {
+            var fileInfo = new FileInfo(path);
+            created = fileInfo.CreationTimeUtc;
+            modified = fileInfo.LastWriteTimeUtc;
+            size = fileInfo.Length;
+        }
+        else if (isDir)
+        {
+            var directoryInfo = new DirectoryInfo(path);
+            created = directoryInfo.CreationTimeUtc;
+            modified = directoryInfo.LastWriteTimeUtc;
+        }
+
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["path"] = path,
+            ["name"] = Path.GetFileName(path),
+            ["exists"] = exists,
+            ["isFile"] = isFile,
+            ["isDir"] = isDir,
+            ["size"] = size is null ? null : size.Value,
+            ["created"] = created is null ? null : created.Value.ToUnixTimeSeconds(),
+            ["modified"] = modified is null ? null : modified.Value.ToUnixTimeSeconds()
+        };
+    }
+
+    private static object EvaluateMathAbs(object? value)
+    {
+        if (RuntimeError.IsError(value))
+        {
+            return value;
+        }
+
+        return value switch
+        {
+            long integer => Math.Abs(integer),
+            double floating => Math.Abs(floating),
+            _ => RuntimeError.Create("abs_failed", "abs expects an int or double.")
+        };
+    }
+
+    private static object EvaluateMathMin(object? left, object? right)
+    {
+        var propagatedError = RuntimeError.Propagate(left, right);
+        if (propagatedError is not null)
+        {
+            return propagatedError!;
+        }
+
+        if (left is long leftInt && right is long rightInt)
+        {
+            return Math.Min(leftInt, rightInt);
+        }
+
+        if (TryConvertToDouble(left, out var leftDouble) && TryConvertToDouble(right, out var rightDouble))
+        {
+            return Math.Min(leftDouble, rightDouble);
+        }
+
+        return RuntimeError.Create("min_failed", "min expects numeric values.");
+    }
+
+    private static object EvaluateMathMax(object? left, object? right)
+    {
+        var propagatedError = RuntimeError.Propagate(left, right);
+        if (propagatedError is not null)
+        {
+            return propagatedError;
+        }
+
+        if (left is long leftInt && right is long rightInt)
+        {
+            return Math.Max(leftInt, rightInt);
+        }
+
+        if (TryConvertToDouble(left, out var leftDouble) && TryConvertToDouble(right, out var rightDouble))
+        {
+            return Math.Max(leftDouble, rightDouble);
+        }
+
+        return RuntimeError.Create("max_failed", "max expects numeric values.");
+    }
+
+    private static object EvaluateMathClamp(object? value, object? minValue, object? maxValue)
+    {
+        var propagatedError = RuntimeError.Propagate(value, minValue, maxValue);
+        if (propagatedError is not null)
+        {
+            return propagatedError!;
+        }
+
+        if (value is long integer && minValue is long minInteger && maxValue is long maxInteger)
+        {
+            return Math.Clamp(integer, minInteger, maxInteger);
+        }
+
+        if (TryConvertToDouble(value, out var floating) &&
+            TryConvertToDouble(minValue, out var minFloating) &&
+            TryConvertToDouble(maxValue, out var maxFloating))
+        {
+            return Math.Clamp(floating, minFloating, maxFloating);
+        }
+
+        return RuntimeError.Create("clamp_failed", "clamp expects numeric values.");
+    }
+
+    private static object EvaluateMathUnary(
+        object? value,
+        string errorCode,
+        string errorMessage,
+        Func<double, double> operation,
+        Func<double, bool>? guard = null)
+    {
+        if (RuntimeError.IsError(value))
+        {
+            return value;
+        }
+
+        if (!TryConvertToDouble(value, out var number))
+        {
+            return RuntimeError.Create(errorCode, "Math functions expect numeric values.");
+        }
+
+        if (guard is not null && !guard(number))
+        {
+            return RuntimeError.Create(errorCode, errorMessage);
+        }
+
+        return operation(number);
+    }
+
+    private static object EvaluateMathBinary(
+        object? left,
+        object? right,
+        Func<double, double, double> operation)
+    {
+        var propagatedError = RuntimeError.Propagate(left, right);
+        if (propagatedError is not null)
+        {
+            return propagatedError!;
+        }
+
+        if (!TryConvertToDouble(left, out var leftNumber) || !TryConvertToDouble(right, out var rightNumber))
+        {
+            return RuntimeError.Create("math_failed", "Math functions expect numeric values.");
+        }
+
+        return operation(leftNumber, rightNumber);
+    }
+
+    private static bool TryConvertToDouble(object? value, out double result)
+    {
+        switch (value)
+        {
+            case long integer:
+                result = integer;
+                return true;
+            case double floating:
+                result = floating;
+                return true;
+            default:
+                result = 0;
+                return false;
+        }
+    }
 }
 
 internal readonly record struct ExecutionSignal(ExecutionSignalKind Kind, object? Value)
@@ -567,4 +869,32 @@ internal enum ExecutionSignalKind
     Return,
     Continue,
     Break
+}
+
+internal sealed class SafeBuiltInCallable(
+    IRuntimeCallable inner,
+    string name,
+    bool propagateErrors,
+    string? errorCode) : IRuntimeCallable
+{
+    public object? Invoke(EvaluationContext context, IReadOnlyList<object?> arguments)
+    {
+        if (propagateErrors)
+        {
+            var propagatedError = RuntimeError.PropagateFirst(arguments);
+            if (propagatedError is not null)
+            {
+                return propagatedError;
+            }
+        }
+
+        try
+        {
+            return inner.Invoke(context, arguments);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or FormatException or OverflowException or ArgumentException)
+        {
+            return RuntimeError.Create(errorCode ?? $"{name}_failed", exception.Message);
+        }
+    }
 }

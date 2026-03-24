@@ -1,31 +1,20 @@
 # Pop
 
-Pop is a small interpreted language implemented in this solution.
+Pop is a small interpreted scripting language for simple programs, reusable modules, file access, and math-heavy utility scripts.
 
-| Project | Purpose |
-| --- | --- |
-| `Language` | Lexer, parser, syntax tree, semantic model |
-| `Runtime` | Interpreter and runtime behavior |
-| `Pop` | Console host for running `.pop` scripts |
-| `Tests` | Parser, semantic, and runtime coverage |
+This repository contains:
 
-## Overview
+- the Pop language implementation
+- the console runner
+- built-in runtime modules
+- a small standard library written in Pop under `Pop\lib`
 
-| Area | Current behavior |
-| --- | --- |
-| Variables | Declared with `var` and inferred from the initializer |
-| Types in source | Omitted for variables, parameters, and returns |
-| Execution model | Syntax tree -> semantic model -> interpreter |
-| Modules | Loaded with `inject "path"` |
-| Exports | Controlled with `public` on `var` and `fun` |
-| Built-ins | Available through the global `corn` module |
-
-## Quick Start
+## Getting Started
 
 Run a script file:
 
 ```text
-dotnet run --project Pop\Pop.csproj -- Pop\Scripts\test.pop
+dotnet run --project Pop\Pop.csproj -- Pop\test.pop
 ```
 
 Run inline source:
@@ -37,28 +26,112 @@ dotnet run --project Pop\Pop.csproj -- "corn.println(1 + 2)"
 Minimal example:
 
 ```text
-public fun add(a, b) {
-    ret a + b
-}
-
-var math -> inject "math.pop"
-corn.println(math.add(10, 10))
+var math -> inject "lib/math.pop"
+corn.println(math.clamp(12, 0, 5))
 ```
 
-## Files And Modules
+## Language Overview
 
-A source file is a sequence of statements.
+Pop source files are sequences of statements.
 
-`inject` is an expression, not a statement. It executes another `.pop` file in isolated module scope and returns an object containing only that file's `public` variables and functions.
+### Comments
 
-Example:
+Single-line comments start with `//`.
 
 ```text
-var math -> inject "math.pop"
-corn.println(math.add(1, 2))
+// this is a comment
+var count -> 1
 ```
 
-Example exported module:
+### Variables
+
+Variables are declared with `var`.
+
+```text
+var name -> "Pop"
+var count -> 1
+```
+
+Assignments use `->`.
+
+```text
+count -> count + 1
+```
+
+Public variables are exported from modules:
+
+```text
+public var version -> "1.0"
+```
+
+### Functions
+
+Functions are declared with `fun`.
+
+```text
+fun add(left, right) {
+    ret left + right
+}
+
+corn.println(add(2, 3))
+```
+
+Public functions are exported from modules:
+
+```text
+public fun double(value) {
+    ret value * 2
+}
+```
+
+Return uses `ret` and may be bare:
+
+```text
+ret
+ret 42
+```
+
+### Control Flow
+
+`if`, `else if`, `else`, and `while` are supported.
+
+```text
+while true {
+    if ready {
+        break
+    }
+
+    if shouldSkip {
+        skip
+    }
+}
+```
+
+- `skip` continues the current loop
+- `break` exits the current loop
+
+### Lambdas
+
+Lambdas use `@(...) { ... }`.
+
+```text
+var square -> @(value) {
+    ret value * value
+}
+
+corn.println(square(4))
+```
+
+### Modules
+
+Use `inject "path"` to load another `.pop` file. `inject` is an expression and returns an object containing only that file's public exports.
+
+```text
+var math -> inject "lib/math.pop"
+corn.println(math.max(10, 4))
+```
+
+Example module:
 
 ```text
 public fun add(a, b) {
@@ -70,246 +143,140 @@ fun hidden() {
 }
 ```
 
-`hidden` is not visible to the importing file.
+Only `add` is visible to the importer.
 
-## Comments
+Injected modules are cached at the parse/bind level, so repeated injects avoid recompiling the same file path. Each inject still executes the module and returns fresh runtime exports.
 
-| Comment kind | Syntax | Notes |
-| --- | --- | --- |
-| Single-line comment | `// text` | Runs to the end of the current line |
+## Values
 
-Example:
+Pop currently supports these value kinds:
 
-```text
-// initialize a value
-var count -> 1
-count -> count + 1 // increment it
-```
+- integers: `123`
+- doubles: `32.5`
+- strings: `"hello"`
+- chars: `'x'`
+- bools: `true`, `false`
+- nil: `nil`
+- objects: `{ name: "Ada" age: 32 }`
+- arrays: `[1, 2, 3]`
+- functions
+- error objects
 
-## Statements
+### Objects
 
-| Statement | Syntax | Notes |
-| --- | --- | --- |
-| Expression statement | `expr` | Any expression can stand alone |
-| Variable declaration | `var name -> expr` | Type inferred from initializer |
-| Public variable | `public var name -> expr` | Exported from injected file |
-| Assignment | `name -> expr` | Right-associative, so `a -> b -> c` works |
-| Member assignment | `obj.name -> expr` | Assigns or creates an object member |
-| Return | `ret` or `ret expr` | Valid only in functions and lambdas |
-| Continue | `cont` | Valid only in loops |
-| Break | `abort` | Valid only in loops |
-| While | `while condition { ... }` | Condition must be `bool` |
-| If | `if condition { ... }` | Condition must be `bool` |
-| Else if | `else if condition { ... }` | Chains with `if` |
-| Else | `else { ... }` | Fallback branch |
-| Function declaration | `fun name(a, b) { ... }` | No explicit parameter or return types |
-| Public function | `public fun name(a, b) { ... }` | Exported from injected file |
-
-Examples:
+Object literals use `{ ... }`.
 
 ```text
-var value -> 10
-value -> value + 1
-
-var obj -> { name: "bob" }
-obj.name -> 1
-obj.age -> 32
-
-while true {
-    if value == 2 {
-        cont
-    }
-
-    if value == 3 {
-        abort
-    }
-}
+var user -> { name: "Ada" age: 32 }
+corn.println(user.name)
 ```
 
-## Expressions
+Object member assignment is supported:
 
-| Expression kind | Example |
-| --- | --- |
-| Integer literal | `123` |
-| Double literal | `32.5` |
-| String literal | `"hello"` |
-| Char literal | `'x'` |
-| Bool literal | `true`, `false` |
-| Nil literal | `nil` |
-| Name | `value` |
-| Parenthesized | `(a + b) * c` |
-| Unary | `-value`, `+value`, `!flag`, `~bits` |
-| Binary | `a + b`, `a * b`, `a == b`, `a && b` |
-| Conditional | `condition ? whenTrue : whenFalse` |
-| Call | `add(1, 2)` |
-| Member access | `obj.name`, `text.len` |
-| Object literal | `{ name: "bob" age: 32 }` |
-| Array literal | `[1, 2, 3]` |
-| Lambda | `@(x) { ret x + 1 }` |
-| Inject | `inject "math.pop"` |
+```text
+user.age -> 33
+user.level -> 5
+```
 
-Supported binary operators:
+### Arrays
+
+Array literals use `[ ... ]`.
+
+```text
+var numbers -> [1, 2, 3]
+numbers.add(4)
+corn.println(numbers.len)
+```
+
+## Expressions And Operators
+
+### Unary Operators
+
+```text
++value
+-value
+!flag
+~bits
+```
+
+### Postfix Update
+
+```text
+value++
+value--
+obj.count++
+obj.count--
+```
+
+`++` and `--` are supported on numeric variables and object members.
+
+### Binary Operators
 
 ```text
 * / % + - << >> < <= > >= == != & ^ | && ||
 ```
 
-## Semantic Model
-
-The semantic layer binds the syntax tree into a typed bound tree.
-
-| Area | Current behavior |
-| --- | --- |
-| `var` | Infers type from initializer |
-| `nil` | Binds as the `nil` type and represents a null runtime value |
-| Function parameters | Bind as `any` |
-| Lambda parameters | Bind as `any` |
-| Function returns | Inferred from `ret` |
-| Lambda returns | Inferred from `ret` |
-| Object literals | Structural property types |
-| Arrays | Infer a common element type when possible |
-| Injected modules | Bound as object-like exported values |
-
-Reported diagnostics include:
-
-| Diagnostic category | Examples |
-| --- | --- |
-| Undefined names | Unknown variables/functions |
-| Duplicate declarations | Same variable/function/property twice |
-| Invalid member access | Missing members on a type |
-| Invalid assignment | Incompatible assignment target/type |
-| Invalid conditions | Non-`bool` conditions in `if`, `while`, `?:` |
-| Invalid flow statements | `ret` outside functions/lambdas, `cont` or `abort` outside loops |
-
-## Runtime
-
-The runtime evaluates the semantic model directly.
-
-| Supported behavior | Status |
-| --- | --- |
-| Variables and assignment | Yes |
-| Functions and lambdas | Yes |
-| Closures | Yes |
-| `if`, `while`, `ret`, `cont`, `abort` | Yes |
-| Objects and arrays | Yes |
-| Module injection | Yes |
-| Built-in `corn` module | Yes |
-
-## Built-In Module
-
-Every script starts with a global module named `corn`.
-
-Examples:
+### Conditional Expression
 
 ```text
-corn.print("hello")
-corn.println(corn.type(1))
-corn.println([1, 2, 3].len)
+condition ? whenTrue : whenFalse
 ```
 
-### Corn Functions
+### Member Access
 
-| Function | Description | Return |
-| --- | --- | --- |
-| `corn.print(value)` | Writes formatted output without a newline | `null` |
-| `corn.println(value)` | Writes formatted output with a newline | `null` |
-| `corn.type(value)` | Returns the runtime type name | `string` |
-| `corn.str(value)` | Formats a value as text | `string` |
-| `corn.int(value)` | Converts to integer when possible | `int` |
-| `corn.double(value)` | Converts to double when possible | `double` |
-| `corn.bool(value)` | Converts to bool | `bool` |
-| `corn.input()` | Reads one input line | `string` |
-| `corn.keys(obj)` | Returns object property names | `array` |
-| `corn.has(obj, name)` | Checks whether an object contains a property | `bool` |
-| `corn.clock()` | Returns UTC Unix time in seconds | `double` |
-| `corn.read(path)` | Reads a file as text | `string` |
-| `corn.write(path, text)` | Writes text to a file | `null` |
+```text
+obj.name
+corn.fs.cwd()
+corn.math.sqrt(9)
+```
 
-`corn.type(value)` currently returns names such as `int`, `double`, `bool`, `char`, `string`, `array`, `object`, `function`, and `nil`.
-
-## Built-In Member APIs
+## Built-In Value APIs
 
 ### Strings
 
-| Member | Description | Return |
-| --- | --- | --- |
-| `text.len` | Number of characters | `int` |
-| `text.at(index)` | Character at `index`, or `null` if out of range | `char` or `null` |
-| `text.add(item)` | Returns a new string with the formatted item appended | `string` |
-| `text.contains(item)` | Returns whether the string contains the formatted item | `bool` |
-| `text.insert(index, item)` | Returns a new string with the formatted item inserted at `index`; out-of-range clamps to the start or end | `string` |
-| `text.replace(index, item)` | Returns a new string with the character at `index` replaced by the formatted item; out-of-range returns the original string | `string` |
-| `text.remove(index)` | Returns a new string with the character at `index` removed; out-of-range returns the original string | `string` |
-| `text.forEach(@(character) { ... })` | Invokes the lambda once per character | `null` |
+- `text.len`
+- `text.at(index)`
+- `text.add(item)`
+- `text.contains(item)`
+- `text.insert(index, item)`
+- `text.replace(index, item)`
+- `text.remove(index)`
+- `text.forEach(@(character) { ... })`
 
 Example:
 
 ```text
 var text -> "hello"
+corn.println(text.len)
 corn.println(text.at(1))
-corn.println(text.contains("ell"))
-text.forEach(@(character) {
-    corn.println(character)
-})
-text -> text.insert(2, "l")
-text -> text.replace(1, "a")
 text -> text.add("!")
-text -> text.remove(1)
-corn.println(text)
-```
-
-### Numbers
-
-| Member | Description | Return |
-| --- | --- | --- |
-| `number.min` | Minimum value for the number's runtime type | `int` or `double` |
-| `number.max` | Maximum value for the number's runtime type | `int` or `double` |
-
-Example:
-
-```text
-var count -> 1
-var ratio -> 1.5
-corn.println(count.min)
-corn.println(count.max)
-corn.println(ratio.min)
-corn.println(ratio.max)
 ```
 
 ### Arrays
 
-| Member | Description | Return |
-| --- | --- | --- |
-| `arr.len` | Number of elements | `int` |
-| `arr.at(index)` | Element at `index`, or `null` if out of range | element type or `null` |
-| `arr.add(item)` | Appends an item in place | `null` |
-| `arr.insert(index, item)` | Inserts an item in place; out-of-range clamps to the start or end | `null` |
-| `arr.replace(index, item)` | Replaces an item in place and returns the previous value, or `null` if out of range | element type or `null` |
-| `arr.remove(index)` | Removes and returns the item at `index`, or `null` if out of range | element type or `null` |
-| `arr.forEach(@(elem) { ... })` | Invokes the lambda once per element | `null` |
+- `arr.len`
+- `arr.at(index)`
+- `arr.add(item)`
+- `arr.insert(index, item)`
+- `arr.replace(index, item)`
+- `arr.remove(index)`
+- `arr.forEach(@(elem) { ... })`
 
 Example:
 
 ```text
 var arr -> [10, 20, 30]
 arr.add(40)
-arr.insert(1, 15)
-corn.println(arr.replace(1, 99))
-corn.println(arr.remove(1))
-arr.forEach(@(elem) {
-    corn.println(elem)
-})
+corn.println(arr.at(1))
 ```
 
 ### Objects
 
-| Member | Description | Return |
-| --- | --- | --- |
-| `obj.len` | Number of members, unless the object already defines a real `len` property | `int` or property value |
-| `obj.get(name)` | Gets a property by string key | property value or `null` |
-| `obj.add(name, value)` | Adds or replaces a property in place | `null` |
-| `obj.remove(name)` | Removes and returns a property value | property value or `null` |
-| `obj.forEach(@(key, value) { ... })` | Invokes the lambda once per member pair | `null` |
+- `obj.len`
+- `obj.get(name)`
+- `obj.add(name, value)`
+- `obj.remove(name)`
+- `obj.forEach(@(key, value) { ... })`
 
 Example:
 
@@ -317,22 +284,229 @@ Example:
 var obj -> { name: "bob" }
 obj.add("age", 32)
 corn.println(obj.get("age"))
-obj.forEach(@(key, value) {
-    corn.println(key)
-    corn.println(value)
-})
-corn.println(obj.remove("name"))
 ```
 
-## Notes And Limitations
+### Numbers
 
-| Area | Current limitation |
-| --- | --- |
-| Assignment syntax | Uses `->`, not `=` |
-| Type syntax | No explicit source-level type annotations |
-| Parameters | Always untyped in source |
-| Built-ins | Only exposed through `corn` |
-| Null literal | Use `nil` to produce a null runtime value |
-| Array indexing | `arr[index]` syntax is not implemented |
-| Increment/decrement | `i++` and `i--` are not implemented |
-| Inject | Expression-based only; no standalone `inject` statement form |
+- `number.min`
+- `number.max`
+
+These return the runtime min/max for the current numeric type.
+
+## Errors As Values
+
+Pop runtime failures are represented as ordinary error objects instead of crashing the host process.
+
+Example:
+
+```text
+var value -> corn.int("hello")
+
+if corn.isError(value) {
+    corn.println(value.code)
+    corn.println(value.message)
+}
+```
+
+Error objects include at least:
+
+- `code`
+- `message`
+
+You can also create one directly:
+
+```text
+var err -> corn.error("bad_input", "Input was invalid.")
+```
+
+## Built-In Modules
+
+Every script starts with a global `corn` module.
+
+### `corn`
+
+General built-ins:
+
+- `corn.print(value)`
+- `corn.println(value)`
+- `corn.type(value)`
+- `corn.str(value)`
+- `corn.int(value)`
+- `corn.double(value)`
+- `corn.bool(value)`
+- `corn.isError(value)`
+- `corn.error(code, message)`
+- `corn.input()`
+- `corn.keys(obj)`
+- `corn.has(obj, name)`
+- `corn.clock()`
+
+`corn.type(value)` currently returns:
+
+- `int`
+- `double`
+- `bool`
+- `char`
+- `string`
+- `array`
+- `object`
+- `function`
+- `error`
+- `nil`
+
+### `corn.fs`
+
+File and directory helpers:
+
+- `corn.fs.read(path)`
+- `corn.fs.write(path, text)`
+- `corn.fs.exists(path)`
+- `corn.fs.info(path)`
+- `corn.fs.list(path)`
+- `corn.fs.cwd()`
+
+`corn.fs.info(path)` returns an object with fields such as:
+
+- `path`
+- `name`
+- `exists`
+- `isFile`
+- `isDir`
+- `size`
+- `created`
+- `modified`
+
+Example:
+
+```text
+var info -> corn.fs.info("notes.txt")
+if info.exists {
+    corn.println(info.size)
+}
+```
+
+### `corn.math`
+
+Constants:
+
+- `corn.math.pi`
+- `corn.math.tau`
+- `corn.math.e`
+
+Functions:
+
+- `corn.math.abs(value)`
+- `corn.math.min(left, right)`
+- `corn.math.max(left, right)`
+- `corn.math.clamp(value, min, max)`
+- `corn.math.sqrt(value)`
+- `corn.math.pow(value, power)`
+- `corn.math.sin(value)`
+- `corn.math.cos(value)`
+- `corn.math.tan(value)`
+- `corn.math.asin(value)`
+- `corn.math.acos(value)`
+- `corn.math.atan(value)`
+- `corn.math.atan2(y, x)`
+- `corn.math.log(value)`
+- `corn.math.log10(value)`
+- `corn.math.log2(value)`
+- `corn.math.exp(value)`
+- `corn.math.floor(value)`
+- `corn.math.ceil(value)`
+- `corn.math.round(value)`
+- `corn.math.trunc(value)`
+
+Invalid math domains return error objects.
+
+Example:
+
+```text
+var value -> corn.math.sqrt(-1)
+corn.println(corn.isError(value))
+```
+
+## Shipped Library Modules
+
+This repository also ships Pop-written library modules under `Pop\lib`.
+
+### `lib/math.pop`
+
+Higher-level math helpers built on `corn.math`.
+
+Exports:
+
+- constants: `pi`, `tau`, `e`
+- `min`, `max`, `clamp`, `clamp01`
+- `abs`, `sign`, `lerp`
+- `sqrt`, `pow`
+- `sin`, `cos`, `tan`
+- `asin`, `acos`, `atan`, `atan2`
+- `log`, `log10`, `log2`, `exp`
+- `floor`, `ceil`, `round`, `trunc`
+- `degToRad`, `radToDeg`
+- `isEven`, `isOdd`
+
+Example:
+
+```text
+var math -> inject "lib/math.pop"
+corn.println(math.lerp(10, 20, 0.25))
+corn.println(math.radToDeg(math.pi))
+```
+
+### `lib/errors.pop`
+
+Helpers for error values.
+
+Exports:
+
+- `make(code, message)`
+- `is(value)`
+- `code(value)`
+- `message(value)`
+
+Example:
+
+```text
+var errors -> inject "lib/errors.pop"
+var err -> errors.make("bad_input", "Nope")
+corn.println(errors.code(err))
+```
+
+### `lib/fs.pop`
+
+Convenience wrappers over `corn.fs`.
+
+Exports:
+
+- `read(path)`
+- `write(path, text)`
+- `exists(path)`
+- `info(path)`
+- `list(path)`
+- `cwd()`
+
+Example:
+
+```text
+var fs -> inject "lib/fs.pop"
+corn.println(fs.cwd())
+```
+
+## Example Script
+
+`Pop\test.pop` demonstrates using the shipped modules:
+
+- `lib/math.pop`
+- `lib/errors.pop`
+- `lib/fs.pop`
+
+## Current Limits
+
+Current notable limitations:
+
+- assignment uses `->`, not `=`
+- there are no source-level type annotations
+- `arr[index]` syntax is not supported
+- `inject` is an expression, not a standalone statement

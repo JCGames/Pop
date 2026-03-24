@@ -74,8 +74,8 @@ internal sealed class Lexer
             '@' => AdvanceSingle(SyntaxKind.AtToken),
             '?' => AdvanceSingle(SyntaxKind.QuestionToken),
             ':' => AdvanceSingle(SyntaxKind.ColonToken),
-            '+' => AdvanceSingle(SyntaxKind.PlusToken),
-            '-' => MatchDouble('>', SyntaxKind.ArrowToken, SyntaxKind.MinusToken),
+            '+' => MatchDouble('+', SyntaxKind.PlusPlusToken, SyntaxKind.PlusToken),
+            '-' => LexMinusFamily(),
             '*' => AdvanceSingle(SyntaxKind.StarToken),
             '/' => AdvanceSingle(SyntaxKind.SlashToken),
             '%' => AdvanceSingle(SyntaxKind.PercentToken),
@@ -107,8 +107,8 @@ internal sealed class Lexer
             "public" => new SyntaxToken(SyntaxKind.PublicKeyword, new TextSpan(start, text.Length), text),
             "fun" => new SyntaxToken(SyntaxKind.FunKeyword, new TextSpan(start, text.Length), text),
             "ret" => new SyntaxToken(SyntaxKind.RetKeyword, new TextSpan(start, text.Length), text),
-            "cont" => new SyntaxToken(SyntaxKind.ContKeyword, new TextSpan(start, text.Length), text),
-            "abort" => new SyntaxToken(SyntaxKind.AbortKeyword, new TextSpan(start, text.Length), text),
+            "skip" => new SyntaxToken(SyntaxKind.SkipKeyword, new TextSpan(start, text.Length), text),
+            "break" => new SyntaxToken(SyntaxKind.BreakKeyword, new TextSpan(start, text.Length), text),
             "inject" => new SyntaxToken(SyntaxKind.InjectKeyword, new TextSpan(start, text.Length), text),
             "while" => new SyntaxToken(SyntaxKind.WhileKeyword, new TextSpan(start, text.Length), text),
             "if" => new SyntaxToken(SyntaxKind.IfKeyword, new TextSpan(start, text.Length), text),
@@ -260,6 +260,21 @@ internal sealed class Lexer
         }
 
         return MatchDouble('=', SyntaxKind.GreaterEqualsToken, SyntaxKind.GreaterToken);
+    }
+
+    private SyntaxToken LexMinusFamily()
+    {
+        if (Peek(1) == '>')
+        {
+            return AdvanceDouble(SyntaxKind.ArrowToken);
+        }
+
+        if (Peek(1) == '-')
+        {
+            return AdvanceDouble(SyntaxKind.MinusMinusToken);
+        }
+
+        return AdvanceSingle(SyntaxKind.MinusToken);
     }
 
     private SyntaxToken LexBadToken()

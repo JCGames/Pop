@@ -90,19 +90,55 @@ public sealed class RuntimeTests
                 value -> value + 1
 
                 if value == 2 {
-                    cont
+                    skip
                 }
 
                 corn.println(value)
 
                 if value == 3 {
-                    abort
+                    break
                 }
             }
             """);
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("1\r\n3\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_UpdatesVariableWithPostfixIncrementAndDecrement()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> 1
+            value++
+            value--
+            value++
+            corn.println(value)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("2\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_UpdatesObjectMemberWithPostfixIncrementAndDecrement()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var obj -> { count: 1 }
+            obj.count++
+            obj.count++
+            obj.count--
+            corn.println(obj.count)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("2\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -133,6 +169,30 @@ public sealed class RuntimeTests
     }
 
     [TestMethod]
+    public void ExecuteText_ReinjectsModuleWithFreshRuntimeState()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        var injectedPath = Path.Combine(directory.FullName, "module.pop");
+        File.WriteAllText(injectedPath, """
+            public var values -> []
+            """);
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            var first -> inject "{{injectedPath.Replace("\\", "\\\\")}}"
+            var second -> inject "{{injectedPath.Replace("\\", "\\\\")}}"
+            first.values.add(1)
+            corn.println(first.values.len)
+            corn.println(second.values.len)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("1\r\n0\r\n", writer.ToString());
+    }
+
+    [TestMethod]
     public void ExecuteText_EvaluatesTypeAndConversionBuiltIns()
     {
         var writer = new StringWriter();
@@ -149,6 +209,72 @@ public sealed class RuntimeTests
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("int\r\n12\r\n42\r\n32.5\r\nfalse\r\ntrue\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_ReturnsErrorObjectForInvalidIntConversion()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> corn.int("Hello")
+            corn.println(corn.isError(value))
+            corn.println(value.code)
+            corn.println(value.message)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\nint_conversion_failed\r\nint conversion failed.\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_PropagatesErrorsThroughBuiltIns()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> corn.double(corn.int("Hello"))
+            corn.println(corn.isError(value))
+            corn.println(value.code)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\nint_conversion_failed\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_ReturnsErrorObjectForMissingFileRead()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> corn.fs.read("C:\\definitely\\missing\\file.pop")
+            corn.println(corn.isError(value))
+            corn.println(value.code)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\nfile_read_failed\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_CreatesUserErrorObject()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> corn.error("bad_input", "Input was invalid.")
+            corn.println(corn.isError(value))
+            corn.println(value.code)
+            corn.println(value.message)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\nbad_input\r\nInput was invalid.\r\n", writer.ToString());
     }
 
     [TestMethod]
@@ -551,11 +677,165 @@ public sealed class RuntimeTests
         var runtime = new ScriptRuntime(writer);
 
         var result = runtime.ExecuteText($$"""
-            corn.write("{{filePath.Replace("\\", "\\\\")}}", "hello file")
-            corn.println(corn.read("{{filePath.Replace("\\", "\\\\")}}"))
+            corn.fs.write("{{filePath.Replace("\\", "\\\\")}}", "hello file")
+            corn.println(corn.fs.read("{{filePath.Replace("\\", "\\\\")}}"))
             """);
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual("hello file\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void Execute_LoadsCoreMathLibraryModule()
+    {
+        var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        var mathPath = Path.Combine(repositoryRoot, "Pop", "lib", "math.pop");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            var math -> inject "{{mathPath.Replace("\\", "\\\\")}}"
+            corn.println(math.min(10, 4))
+            corn.println(math.max(10, 4))
+            corn.println(math.clamp(12, 0, 5))
+            corn.println(math.abs(-3))
+            corn.println(math.sign(-10))
+            corn.println(math.lerp(10, 20, 0.25))
+            corn.println(math.sqrt(9))
+            corn.println(math.pow(2, 3))
+            corn.println(math.floor(3.9))
+            corn.println(math.ceil(3.1))
+            corn.println(math.round(3.6))
+            corn.println(math.trunc(3.6))
+            corn.println(math.isEven(4))
+            corn.println(math.isOdd(5))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("4\r\n10\r\n5\r\n3\r\n-1\r\n12.5\r\n3\r\n8\r\n3\r\n4\r\n4\r\n3\r\ntrue\r\ntrue\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void Execute_LoadsCoreErrorsLibraryModule()
+    {
+        var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        var errorsPath = Path.Combine(repositoryRoot, "Pop", "lib", "errors.pop");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            var errors -> inject "{{errorsPath.Replace("\\", "\\\\")}}"
+            var value -> errors.make("bad_input", "Nope")
+            corn.println(errors.is(value))
+            corn.println(errors.code(value))
+            corn.println(errors.message(value))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\nbad_input\r\nNope\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void Execute_LoadsCoreFsLibraryModule()
+    {
+        var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        var fsPath = Path.Combine(repositoryRoot, "Pop", "lib", "fs.pop");
+        var directory = Directory.CreateTempSubdirectory();
+        var filePath = Path.Combine(directory.FullName, "data.txt");
+        File.WriteAllText(filePath, "hello");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            var fs -> inject "{{fsPath.Replace("\\", "\\\\")}}"
+            corn.println(fs.exists("{{filePath.Replace("\\", "\\\\")}}"))
+            var info -> fs.info("{{filePath.Replace("\\", "\\\\")}}")
+            corn.println(info.isFile)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\ntrue\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_UsesCornMathBuiltIns()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            corn.println(corn.math.pi)
+            corn.println(corn.math.tau)
+            corn.println(corn.math.e)
+            corn.println(corn.math.sqrt(16))
+            corn.println(corn.math.pow(2, 4))
+            corn.println(corn.math.sin(0))
+            corn.println(corn.math.cos(0))
+            corn.println(corn.math.atan2(0, 1))
+            corn.println(corn.math.log10(100))
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual($"{Math.PI}\r\n{Math.Tau}\r\n{Math.E}\r\n4\r\n16\r\n0\r\n1\r\n0\r\n2\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_ReturnsErrorObjectForInvalidCornMathDomain()
+    {
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText("""
+            var value -> corn.math.sqrt(-1)
+            corn.println(corn.isError(value))
+            corn.println(value.code)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\nsqrt_failed\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_ReturnsFileInfoFromCornFs()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        var filePath = Path.Combine(directory.FullName, "data.txt");
+        File.WriteAllText(filePath, "hello");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            var info -> corn.fs.info("{{filePath.Replace("\\", "\\\\")}}")
+            corn.println(info.exists)
+            corn.println(info.isFile)
+            corn.println(info.isDir)
+            corn.println(info.size)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("true\r\ntrue\r\nfalse\r\n5\r\n", writer.ToString());
+    }
+
+    [TestMethod]
+    public void ExecuteText_ListsDirectoryEntriesFromCornFs()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        File.WriteAllText(Path.Combine(directory.FullName, "a.txt"), "a");
+        File.WriteAllText(Path.Combine(directory.FullName, "b.txt"), "b");
+
+        var writer = new StringWriter();
+        var runtime = new ScriptRuntime(writer);
+
+        var result = runtime.ExecuteText($$"""
+            var entries -> corn.fs.list("{{directory.FullName.Replace("\\", "\\\\")}}")
+            corn.println(entries.len)
+            """);
+
+        Assert.IsTrue(result.Succeeded);
+        Assert.AreEqual("2\r\n", writer.ToString());
     }
 }

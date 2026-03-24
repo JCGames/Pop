@@ -110,7 +110,7 @@ internal sealed class Binder
     {
         if (_loopDepth == 0)
         {
-            Report(continueStatement.Span, "`cont` can only be used inside a loop.");
+            Report(continueStatement.Span, "`skip` can only be used inside a loop.");
         }
 
         return new BoundContinueStatement();
@@ -120,7 +120,7 @@ internal sealed class Binder
     {
         if (_loopDepth == 0)
         {
-            Report(breakStatement.Span, "`abort` can only be used inside a loop.");
+            Report(breakStatement.Span, "`break` can only be used inside a loop.");
         }
 
         return new BoundBreakStatement();
@@ -149,6 +149,7 @@ internal sealed class Binder
             VariableDeclarationExpressionSyntax declaration => BindVariableDeclarationExpression(declaration),
             AssignmentExpressionSyntax assignment => BindAssignmentExpression(assignment),
             UnaryExpressionSyntax unary => BindUnaryExpression(unary),
+            PostfixUnaryExpressionSyntax postfixUnary => BindPostfixUnaryExpression(postfixUnary),
             BinaryExpressionSyntax binary => BindBinaryExpression(binary),
             ConditionalExpressionSyntax conditional => BindConditionalExpression(conditional),
             CallExpressionSyntax call => BindCallExpression(call),
@@ -181,7 +182,17 @@ internal sealed class Binder
     {
         var path = injectExpression.PathToken.Value?.ToString() ?? string.Empty;
         var resolvedPath = ResolvePath(path);
-        var injectedModel = SemanticModel.Create(SourceFile.Load(new FileInfo(resolvedPath)));
+        SemanticModel injectedModel;
+
+        try
+        {
+            injectedModel = ModuleLoader.LoadSemanticModel(resolvedPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Report(injectExpression.Span, exception.Message);
+            return new BoundErrorExpression();
+        }
 
         foreach (var diagnostic in injectedModel.Diagnostics)
         {
@@ -299,6 +310,98 @@ internal sealed class Binder
         }
 
         return new BoundUnaryExpression(unary.OperatorToken.Kind, operand, resultType);
+    }
+
+    private BoundExpression BindPostfixUnaryExpression(PostfixUnaryExpressionSyntax postfixUnary)
+    {
+        var arithmeticOperatorKind = postfixUnary.OperatorToken.Kind switch
+        {
+            SyntaxKind.PlusPlusToken => SyntaxKind.PlusToken,
+            SyntaxKind.MinusMinusToken => SyntaxKind.MinusToken,
+            _ => throw new InvalidOperationException($"Unsupported postfix operator '{postfixUnary.OperatorToken.Kind}'.")
+        };
+
+        return postfixUnary.Operand switch
+        {
+            NameExpressionSyntax name => BindPostfixVariableUpdateExpression(name, postfixUnary, arithmeticOperatorKind),
+            MemberAccessExpressionSyntax memberAccess => BindPostfixMemberUpdateExpression(memberAccess, postfixUnary, arithmeticOperatorKind),
+            _ => ReportInvalidPostfixTarget(postfixUnary)
+        };
+    }
+
+    private BoundExpression BindPostfixVariableUpdateExpression(
+        NameExpressionSyntax name,
+        PostfixUnaryExpressionSyntax postfixUnary,
+        SyntaxKind arithmeticOperatorKind)
+    {
+        if (!_scope.TryLookupVariable(name.IdentifierToken.Text, out var variable))
+        {
+            Report(name.Span, $"Undefined variable '{name.IdentifierToken.Text}'.");
+            return new BoundErrorExpression();
+        }
+
+        if (!IsNumber(variable.Type))
+        {
+            Report(postfixUnary.Span, $"Operator '{postfixUnary.OperatorToken.Text}' is not defined for type '{variable.Type.Name}'.");
+            return new BoundErrorExpression();
+        }
+
+        var variableExpression = new BoundNameExpression(variable, variable.Type);
+        var updatedValue = CreatePostfixUpdatedValue(variableExpression, arithmeticOperatorKind, variable.Type);
+        return new BoundPostfixUpdateExpression(new BoundAssignmentExpression(variable, updatedValue));
+    }
+
+    private BoundExpression BindPostfixMemberUpdateExpression(
+        MemberAccessExpressionSyntax memberAccess,
+        PostfixUnaryExpressionSyntax postfixUnary,
+        SyntaxKind arithmeticOperatorKind)
+    {
+        var target = BindExpression(memberAccess.Target);
+        if (target.Type == TypeSymbol.Error)
+        {
+            return new BoundErrorExpression();
+        }
+
+        if (target.Type is not ObjectTypeSymbol && target.Type != TypeSymbol.Any)
+        {
+            Report(memberAccess.Target.Span, $"Type '{target.Type.Name}' does not support member assignment.");
+            return new BoundErrorExpression();
+        }
+
+        var memberType = target.Type switch
+        {
+            TypeSymbol any when any == TypeSymbol.Any => TypeSymbol.Any,
+            ObjectTypeSymbol objectType when objectType.TryGetProperty(memberAccess.IdentifierToken.Text, out var propertyType) => propertyType,
+            _ => TypeSymbol.Any
+        };
+
+        if (!IsNumber(memberType))
+        {
+            Report(postfixUnary.Span, $"Operator '{postfixUnary.OperatorToken.Text}' is not defined for type '{memberType.Name}'.");
+            return new BoundErrorExpression();
+        }
+
+        var memberAccessExpression = new BoundMemberAccessExpression(target, memberAccess.IdentifierToken.Text, memberType);
+        var updatedValue = CreatePostfixUpdatedValue(memberAccessExpression, arithmeticOperatorKind, memberType);
+        return new BoundPostfixUpdateExpression(
+            new BoundMemberAssignmentExpression(target, memberAccess.IdentifierToken.Text, updatedValue, updatedValue.Type));
+    }
+
+    private BoundExpression ReportInvalidPostfixTarget(PostfixUnaryExpressionSyntax postfixUnary)
+    {
+        Report(postfixUnary.Operand.Span, "Invalid increment/decrement target.");
+        return new BoundErrorExpression();
+    }
+
+    private static BoundBinaryExpression CreatePostfixUpdatedValue(
+        BoundExpression operand,
+        SyntaxKind arithmeticOperatorKind,
+        TypeSymbol operandType)
+    {
+        var literalType = operandType == TypeSymbol.Double ? TypeSymbol.Double : TypeSymbol.Int;
+        var literalValue = operandType == TypeSymbol.Double ? 1d : 1L;
+        var increment = new BoundLiteralExpression(literalValue, literalType);
+        return new BoundBinaryExpression(operand, arithmeticOperatorKind, increment, operandType);
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpressionSyntax binary)

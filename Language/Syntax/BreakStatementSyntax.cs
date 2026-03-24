@@ -2,13 +2,13 @@ namespace Pop.Language;
 
 public sealed class BreakStatementSyntax : StatementSyntax
 {
-    public SyntaxToken AbortKeyword { get; }
+    public SyntaxToken BreakKeyword { get; }
 
-    public BreakStatementSyntax(SyntaxToken abortKeyword)
+    public BreakStatementSyntax(SyntaxToken breakKeyword)
     {
-        AbortKeyword = abortKeyword;
+        BreakKeyword = breakKeyword;
     }
 
     public override SyntaxKind Kind => SyntaxKind.BreakStatement;
-    public override TextSpan Span => AbortKeyword.Span;
+    public override TextSpan Span => BreakKeyword.Span;
 }

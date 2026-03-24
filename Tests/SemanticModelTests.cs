@@ -41,6 +41,30 @@ public sealed class SemanticModelTests
     }
 
     [TestMethod]
+    public void CreateText_BindsCornFsBuiltInModule()
+    {
+        var model = SemanticModel.CreateText("corn.fs.info");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var statement = (BoundExpressionStatement)model.Root.Statements[0];
+        var memberAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(memberAccess.Type);
+    }
+
+    [TestMethod]
+    public void CreateText_BindsCornMathBuiltInModule()
+    {
+        var model = SemanticModel.CreateText("corn.math.sqrt");
+
+        Assert.IsEmpty(model.Diagnostics);
+
+        var statement = (BoundExpressionStatement)model.Root.Statements[0];
+        var memberAccess = (BoundMemberAccessExpression)statement.Expression;
+        Assert.IsInstanceOfType<FunctionTypeSymbol>(memberAccess.Type);
+    }
+
+    [TestMethod]
     public void CreateText_ResolvesObjectMemberAccessType()
     {
         var model = SemanticModel.CreateText("var obj -> { age: 32 }\nobj.age");
@@ -141,6 +165,22 @@ public sealed class SemanticModelTests
         var objectType = (ObjectTypeSymbol)module.Type;
         Assert.IsTrue(objectType.TryGetProperty("add", out _));
         Assert.IsFalse(objectType.TryGetProperty("hidden", out _));
+    }
+
+    [TestMethod]
+    public void CreateText_ReportsCyclicInject()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        var firstPath = Path.Combine(directory.FullName, "first.pop");
+        var secondPath = Path.Combine(directory.FullName, "second.pop");
+
+        File.WriteAllText(firstPath, $$"""public var second -> inject "{{secondPath.Replace("\\", "\\\\")}}" """);
+        File.WriteAllText(secondPath, $$"""public var first -> inject "{{firstPath.Replace("\\", "\\\\")}}" """);
+
+        var model = SemanticModel.CreateText($$"""var first -> inject "{{firstPath.Replace("\\", "\\\\")}}" """);
+
+        Assert.IsNotEmpty(model.Diagnostics);
+        Assert.IsTrue(model.Diagnostics.Any(diagnostic => diagnostic.Message.Contains("Cyclic inject detected")));
     }
 
     [TestMethod]
@@ -407,19 +447,44 @@ public sealed class SemanticModelTests
     [TestMethod]
     public void CreateText_ReportsContinueOutsideLoop()
     {
-        var model = SemanticModel.CreateText("cont");
+        var model = SemanticModel.CreateText("skip");
 
         Assert.IsNotEmpty(model.Diagnostics);
-        Assert.IsTrue(model.Diagnostics.Any(diagnostic => diagnostic.Message.Contains("`cont` can only be used inside a loop.")));
+        Assert.IsTrue(model.Diagnostics.Any(diagnostic => diagnostic.Message.Contains("`skip` can only be used inside a loop.")));
     }
 
     [TestMethod]
     public void CreateText_ReportsBreakOutsideLoop()
     {
-        var model = SemanticModel.CreateText("abort");
+        var model = SemanticModel.CreateText("break");
 
         Assert.IsNotEmpty(model.Diagnostics);
-        Assert.IsTrue(model.Diagnostics.Any(diagnostic => diagnostic.Message.Contains("`abort` can only be used inside a loop.")));
+        Assert.IsTrue(model.Diagnostics.Any(diagnostic => diagnostic.Message.Contains("`break` can only be used inside a loop.")));
+    }
+
+    [TestMethod]
+    public void CreateText_AllowsPostfixIncrementOnIntVariable()
+    {
+        var model = SemanticModel.CreateText("var value -> 1\nvalue++");
+
+        Assert.IsEmpty(model.Diagnostics);
+    }
+
+    [TestMethod]
+    public void CreateText_AllowsPostfixDecrementOnObjectMember()
+    {
+        var model = SemanticModel.CreateText("var obj -> { count: 2 }\nobj.count--");
+
+        Assert.IsEmpty(model.Diagnostics);
+    }
+
+    [TestMethod]
+    public void CreateText_ReportsPostfixIncrementOnNonNumericValue()
+    {
+        var model = SemanticModel.CreateText("var text -> \"hello\"\ntext++");
+
+        Assert.IsNotEmpty(model.Diagnostics);
+        Assert.IsTrue(model.Diagnostics.Any(diagnostic => diagnostic.Message.Contains("Operator '++' is not defined for type 'string'.")));
     }
 
     [TestMethod]

@@ -1,74 +1,123 @@
-﻿var Integer -> 0
-var Double -> 0.0
+public var pi -> corn.math.pi
+public var tau -> corn.math.tau
+public var e -> corn.math.e
 
-public var IntMin -> Integer.min
-public var IntMax -> Integer.max
-
-public var DoubleMin -> Double.min
-public var DoubleMax -> Double.max
-
-public fun max(arr) {
-    if (corn.type(arr) != "array") {
-        corn.println("[max] function only takes arrays.")
-        ret -1
-    }
-
-    var min -> IntMin
-
-    arr.forEach(@(number) {
-        if min < number {
-            min -> number
-        }
-    })
-
-    ret min
+public fun min(left, right) {
+    ret corn.math.min(left, right)
 }
 
-public fun min(arr) {
-    if (corn.type(arr) != "array") {
-        corn.println("[min] function only takes arrays.")
-        ret -1
-    }
+public fun max(left, right) {
+    ret corn.math.max(left, right)
+}
 
-    var max -> IntMax
-
-    arr.forEach(@(number) {
-        if max > number {
-            max -> number
-        }
-    })
-
-    ret max
+public fun clamp(number, minValue, maxValue) {
+    ret corn.math.clamp(number, minValue, maxValue)
 }
 
 public fun clamp01(number) {
-    var type -> corn.type(number)
-    if (type != "int" && type != "double") {
-        corn.println("[clamp01] function only takes a number.")
-        ret
-    }
-
-    if (number < 0) {
-        number -> 0
-    }
-
-    if (number > 1) {
-        number -> 1
-    }
-
-    ret number
+    ret clamp(number, 0, 1)
 }
 
 public fun abs(number) {
-    var type -> corn.type(number)
-    if (type != "int" && type != "double") {
-        corn.println("[clamp01] function only takes a number.")
-        ret
+    ret corn.math.abs(number)
+}
+
+public fun sign(number) {
+    if number < 0 {
+        ret -1
     }
 
-    if (number < 0) {
-        ret number * -1
+    if number > 0 {
+        ret 1
     }
 
-    ret number
+    ret 0
+}
+
+public fun lerp(start, finish, amount) {
+    ret start + (finish - start) * clamp01(amount)
+}
+
+public fun sqrt(number) {
+    ret corn.math.sqrt(number)
+}
+
+public fun pow(number, power) {
+    ret corn.math.pow(number, power)
+}
+
+public fun sin(number) {
+    ret corn.math.sin(number)
+}
+
+public fun cos(number) {
+    ret corn.math.cos(number)
+}
+
+public fun tan(number) {
+    ret corn.math.tan(number)
+}
+
+public fun asin(number) {
+    ret corn.math.asin(number)
+}
+
+public fun acos(number) {
+    ret corn.math.acos(number)
+}
+
+public fun atan(number) {
+    ret corn.math.atan(number)
+}
+
+public fun atan2(y, x) {
+    ret corn.math.atan2(y, x)
+}
+
+public fun log(number) {
+    ret corn.math.log(number)
+}
+
+public fun log10(number) {
+    ret corn.math.log10(number)
+}
+
+public fun log2(number) {
+    ret corn.math.log2(number)
+}
+
+public fun exp(number) {
+    ret corn.math.exp(number)
+}
+
+public fun floor(number) {
+    ret corn.math.floor(number)
+}
+
+public fun ceil(number) {
+    ret corn.math.ceil(number)
+}
+
+public fun round(number) {
+    ret corn.math.round(number)
+}
+
+public fun trunc(number) {
+    ret corn.math.trunc(number)
+}
+
+public fun degToRad(number) {
+    ret number * pi / 180
+}
+
+public fun radToDeg(number) {
+    ret number * 180 / pi
+}
+
+public fun isEven(number) {
+    ret number % 2 == 0
+}
+
+public fun isOdd(number) {
+    ret number % 2 != 0
 }
