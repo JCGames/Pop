@@ -1,0 +1,42 @@
+{
+  "name": "pop-language",
+  "displayName": "Pop Language",
+  "description": "Syntax highlighting and IntelliSense for the Pop language.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "scripts": {
+    "bundle-server": "powershell -ExecutionPolicy Bypass -File .\\stage-server.ps1"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:pop"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "pop",
+        "aliases": [
+          "Pop",
+          "pop"
+        ],
+        "extensions": [
+          ".pop"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pop",
+        "scopeName": "source.pop",
+        "path": "./syntaxes/pop.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "scopeName": "source.pop",
+  "name": "Pop",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#constants"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.pop",
+          "match": "\\b(if|else|while|ret|skip|break|inject)\\b"
+        },
+        {
+          "name": "keyword.declaration.pop",
+          "match": "\\b(public|fun|var)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.pop",
+          "match": "\\b\\d+(?:\\.\\d+)?\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.pop",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.pop",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.pop",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.pop",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.pop",
+          "match": "\\bfun\\s+([A-Za-z_][A-Za-z0-9_]*)\\b"
+        },
+        {
+          "name": "support.function.pop",
+          "match": "\\b(corn)(?=\\.)"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.pop",
+          "match": "(->|\\+\\+|--|==|!=|<=|>=|&&|\\|\\||<<|>>|[+\\-*/%<>&|^~!?=:.,])"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.pop",
+          "match": "\\b(true|false|nil)\\b"
+        }
+      ]
+    }
+  }
+}

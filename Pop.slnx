@@ -7,6 +7,7 @@
   </Folder>
   <Project Path="Language/Language.csproj" />
   <Project Path="Pop/Pop.csproj" />
+  <Project Path="Pop.LanguageServer/Pop.LanguageServer.csproj" />
   <Project Path="Runtime/Runtime.csproj" />
   <Project Path="Tests/Tests.csproj" />
 </Solution>

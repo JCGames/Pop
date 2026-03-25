@@ -33,6 +33,13 @@ public sealed class SourceFile
         return new SourceFile(text, null);
     }
 
+    public static SourceFile FromText(string text, FileInfo fileInfo)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(fileInfo);
+        return new SourceFile(text, fileInfo);
+    }
+
     public char this[int position] => Peek(position);
 
     public bool IsEnd(int position) => position >= Text.Length;
