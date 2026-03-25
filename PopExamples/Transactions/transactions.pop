@@ -1,0 +1,43 @@
+var fs -> inject "../../Pop/lib/fs.pop"
+
+public fun createTransaction(transactions, id, type, for, amount) {
+    transactions.add({
+        id: id
+        type: type
+        for: for
+        amount: amount
+    })
+
+    save(transactions)
+}
+
+public fun removeTransaction(transactions, id) {
+    var foundIndex -> 0
+    
+    while foundIndex < transactions.len {
+        var currentId -> transactions.at(foundIndex).id
+
+        if currentId == corn.double(id) {
+            transactions.remove(foundIndex)
+            corn.println("Removed transaction at index: " + foundIndex)
+            break
+        }
+        foundIndex++
+    }
+
+    save(transactions)
+}
+
+public fun createIfDoesNotExist() {
+    if !fs.exists("transactions.json") {
+        fs.write("transactions.json", corn.json.stringify([]))
+    }
+
+    var transactions -> corn.json.parse(fs.read("transactions.json"))
+
+    ret transactions
+}
+
+fun save(transactions) {
+    fs.write("transactions.json", corn.json.pretty(transactions))
+}

@@ -1,0 +1,44 @@
+var fs -> inject "../../Pop/lib/fs.pop"
+var t -> inject "transactions.pop"
+
+fun main() {
+    var transactions -> t.createIfDoesNotExist()
+
+    if corn.isError(transactions) {
+        corn.println(transactions)
+        ret
+    }
+
+    var newId -> transactions.len == 0 ? 0 : transactions.at(transactions.len - 1).id + 1
+
+    while true {
+        corn.println("Add transaction (1)")
+        corn.println("Remove transaction (2)")
+        corn.print("Choose: ")
+        
+        var choice -> corn.input()
+
+        if (corn.isError(choice)) {
+            corn.println(choice)
+            ret
+        }
+
+        if choice == "1" {
+            t.createTransaction(transactions, newId, "credit", "gas", 50)
+            newId++
+        }
+        else if choice == "2" {
+            corn.print("Which id (int): ")
+            var whichId -> corn.int(corn.input())
+
+            if (corn.isError(whichId)) {
+                corn.println(whichId)
+                ret
+            }
+
+            t.removeTransaction(transactions, whichId)
+        }
+    }
+}
+
+main()

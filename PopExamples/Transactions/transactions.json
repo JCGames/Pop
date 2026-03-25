@@ -1,0 +1,20 @@
+[
+  {
+    "id": 0,
+    "type": "credit",
+    "for": "gas",
+    "amount": 50
+  },
+  {
+    "id": 2,
+    "type": "credit",
+    "for": "gas",
+    "amount": 50
+  },
+  {
+    "id": 3,
+    "type": "credit",
+    "for": "gas",
+    "amount": 50
+  }
+]

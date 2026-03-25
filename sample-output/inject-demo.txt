@@ -1,0 +1,3 @@
+Pop inject demo
+sqrt(81) -> 9
+cwd -> C:\Users\camma\RiderProjects\Pop

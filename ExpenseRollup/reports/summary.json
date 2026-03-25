@@ -1,0 +1,25 @@
+{
+  "filesProcessed": 0,
+  "total": 0,
+  "categoryTotals": {
+    "food": 0,
+    "travel": 0,
+    "tools": 0,
+    "misc": 0
+  },
+  "entries": [],
+  "skipped": [
+    {
+      "path": "ExpenseRollup/data\\__error",
+      "message": "Could not find a part of the path \u0027C:\\Users\\camma\\RiderProjects\\Pop\\ExpenseRollup\\data\\__error\u0027."
+    },
+    {
+      "path": "ExpenseRollup/data\\code",
+      "message": "Could not find a part of the path \u0027C:\\Users\\camma\\RiderProjects\\Pop\\ExpenseRollup\\data\\code\u0027."
+    },
+    {
+      "path": "ExpenseRollup/data\\message",
+      "message": "Could not find a part of the path \u0027C:\\Users\\camma\\RiderProjects\\Pop\\ExpenseRollup\\data\\message\u0027."
+    }
+  ]
+}

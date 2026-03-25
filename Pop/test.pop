@@ -1,0 +1,33 @@
+var math -> inject "lib/math.pop"
+var errors -> inject "lib/errors.pop"
+var fs -> inject "lib/fs.pop"
+
+corn.println("== inject demo ==")
+corn.println("")
+
+corn.println("math module")
+corn.println("clamp(12, 0, 5) -> " + corn.str(math.clamp(12, 0, 5)))
+corn.println("lerp(10, 20, 0.25) -> " + corn.str(math.lerp(10, 20, 0.25)))
+corn.println("")
+
+corn.println("errors module")
+var badNumber -> corn.int("nope")
+if errors.is(badNumber) {
+    corn.println("code -> " + errors.code(badNumber))
+    corn.println("message -> " + errors.message(badNumber))
+}
+corn.println("")
+
+corn.println("fs module")
+var outputDir -> "sample-output"
+if !fs.exists(outputDir) {
+    fs.mkdir(outputDir)
+}
+
+var outputPath -> fs.join(outputDir, "inject-demo.txt")
+fs.write(outputPath, "Pop inject demo\n")
+fs.append(outputPath, "sqrt(81) -> " + corn.str(math.sqrt(81)) + "\n")
+fs.append(outputPath, "cwd -> " + fs.cwd() + "\n")
+
+corn.println("wrote -> " + fs.absolute(outputPath))
+corn.println("file size -> " + corn.str(fs.size(outputPath)))
